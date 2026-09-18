@@ -16,11 +16,11 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 
 | Priority | Task | Acceptance Criterion / Next Action |
 |---|---|---|
-| P0 | Merge doctor availability pull request | PR #2 is open and PHP CI run `35346914933` passed; review/merge before deployment |
+| P0 | Back up and migrate appointment database | PRs #1 and #2 are merged; confirm a recoverable production database backup, then run the appointment migration once and validate existing records |
 | P0 | Confirm deployment access | Confirm production database migration method and working HostBreak cPanel/SFTP or equivalent access |
 | P0 | Deploy Easy!Appointments | Install a compatible open-source release on HostBreak, secure it, configure its database, and verify API access without exposing its raw staff UI to customers |
 | P0 | Deploy and verify identifier migration | Source migration is merged; back up the database, run it once, verify existing records, then test Client ID → Case ID → Agent Calls → Payment → Doctor/Appointment → Doctor Calls |
-| P0 | Deploy and verify availability/durations | PR #2 implements Doctor self-service, Admin override, recurring hours, breaks, exceptions/leave, provider/service mapping, and 15/30/45/60-minute durations; merge, migrate, configure, and role-test |
+| P0 | Deploy and verify availability/durations | Merged source implements Doctor self-service, Admin override, recurring hours, breaks, exceptions/leave, provider/service mapping, and 15/30/45/60-minute durations; migrate, configure, and role-test |
 | P0 | Deploy and verify 15-minute slot holds | Source is merged; test atomic first-wins holds, interval blocking, visible expiry, schedule conversion, automatic release, and conflict response against the migrated database |
 | P0 | Complete three-role synchronization | Admin, Agent, and Doctor views/actions use the same availability and appointment state |
 | P0 | Build customer appointment access | `bettertalk.pk/customer-login`; normalized mobile + password; OTP recovery; appointment/history/payment view; pseudonym/no picture; controlled requests |
@@ -102,8 +102,8 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 ## Appointment Implementation Blockers / Required Access
 
 - Appointment foundation pull request #1 passed PHP CI and was merged to `main` as commit `ba05d6a` on 18 September 2026.
-- Doctor availability pull request #2 is open; native PHP syntax and expanded appointment/availability tests passed in GitHub Actions run `35346914933`.
-- PR #2 review/merge and production deployment are separate actions and remain pending.
+- Doctor availability pull request #2 passed native PHP syntax and expanded appointment/availability tests in GitHub Actions run `35346914933`, then merged to `main` as commit `a45d795`.
+- Production database backup/migration and Easy!Appointments deployment remain pending and require reliable HostBreak access.
 - Easy!Appointments deployment requires HostBreak cPanel/File Manager or SFTP/SSH access and permission to create/configure its database and installation path/subdomain.
 - OTP password recovery requires an SMS provider/API configuration. Automated appointment reminders are not required.
 

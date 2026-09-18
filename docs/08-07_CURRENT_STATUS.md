@@ -41,7 +41,7 @@
 | Website lead sync | Partially deployed / To verify | Backend exists; fix live form, submit one synthetic lead, and trace its portal/database record |
 | Lead status changes | Pending/To verify | Confirm role-based dropdown and audit history |
 | User management | Pending/To verify | Confirm admin can add/edit/deactivate roles |
-| Doctor management | Source implementation / CI passed | PR #2 adds Doctor ID/pseudonym creation plus Doctor/Admin availability controls; database, Easy!Appointments, role, and production tests remain pending |
+| Doctor management | Merged source implementation / CI passed | PR #2 is on `main` with Doctor ID/pseudonym creation plus Doctor/Admin availability controls; database, Easy!Appointments, role, and production tests remain pending |
 | Agent intake notes | Pending/To verify | Confirm structured and internal notes |
 | Agent payment management | Pending/To verify | Confirm request, proof, status, reference |
 | Agent doctor scheduling | Merged source foundation / CI passed | PR #1 merged to `main` as `ba05d6a`; database, Easy!Appointments, role, concurrency, and production tests remain pending |
@@ -93,7 +93,7 @@
 - Availability changes save to the Better Talk Portal and synchronize provider working plans/unavailability records to Easy!Appointments. Failed or incomplete synchronization is visible and blocks new scheduling for the affected doctor; locally active leave also participates in conflict detection.
 - New doctors receive a permanent Doctor ID and customer-facing pseudonym fields. Doctor self-service is restricted to the logged-in doctor, while Admin may select and override any doctor; changes use CSRF protection and audit events.
 - GitHub Actions run `35346914933` passed native PHP syntax checks and the expanded appointment/availability tests for working plans, multiple breaks, invalid ranges, date exceptions, and Pakistan-to-UTC leave conversion.
-- PR #2 remains open and unmerged. No production database migration, Easy!Appointments installation, HostBreak file, or live portal behavior was changed or tested.
+- Pull request #2 was merged to `main` on 18 September 2026 as commit `a45d795` after successful CI. No production database migration, Easy!Appointments installation, HostBreak file, or live portal behavior was changed or tested.
 
 ## 4. Next Status Update Method
 
