@@ -33,8 +33,9 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 - Browser-initiated SQL downloads failed with `Fetch domain is not enabled`; no local database backup was created. The server-side full-account backup is the verified recovery point.
 - The migration is complete and must **not** be rerun. phpMyAdmin reported 20 successful queries; validation found all 8 expected tables and zero missing required backfill values in existing appointments, calls, doctors, or patients.
 - The four active services are `BT-15`, `BT-30`, `BT-45`, and `BT-60`.
-- Softaculous does not include Easy!Appointments. Official stable release `1.6.0` is prepared and its SHA-256 matches the upstream release.
-- Resume with the approval-gated step: create a dedicated least-privilege Easy!Appointments database/user, install at `schedule.bettertalk.pk`, complete its setup wizard, secure raw public access, then configure and test Portal API synchronization.
+- Softaculous does not include Easy!Appointments. Official stable release `1.6.0` has been server-downloaded and SHA-256 verified before extraction.
+- **Paused installation milestone:** `catalogs_ea` plus its dedicated DB user are created; the archive is extracted at `/home/catalogs/public_html/portal.bettertalk.pk/scheduler`; the public `/scheduler` route reaches EasyAppointments and reports the expected missing `config.php` precondition. A reversible portal front-controller hand-off was added solely for `/scheduler`.
+- Resume with: copy `config-sample.php` to `config.php`, set the dedicated database connection without recording its password in source/docs, run setup, configure administrator/API access, restrict the raw scheduler UI appropriately, and test Portal API synchronization.
 
 ### Historical Production-Access Blocker
 
