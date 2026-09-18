@@ -42,3 +42,16 @@ Task 1 lead-sync code has been deployed manually to HostBreak. The production fi
 
 End-to-end test submission still needs completion from a stable browser/client path.
 
+## Appointment module development
+
+The appointment foundation is implemented on a feature branch and is not a production deployment.
+
+1. Back up the portal database.
+2. Run `portal/sql/appointment_module_migration.sql` once after `lead_sync_migration.sql`.
+3. Install Easy!Appointments separately on the same HostBreak account or another approved host using PHP 8.2+, MySQL, and HTTPS.
+4. Create the four Easy!Appointments services (15/30/45/60 minutes), map their IDs in `appointment_services`, and map each doctor to an Easy!Appointments provider.
+5. Add the `easyappointments` values to the server-only `portal/app/config.php`.
+6. Assign each doctor their permitted rows in `doctor_appointment_services`.
+7. Test payment gate, availability, 15-minute holds, concurrent agents, expiry, scheduling, synchronization, and role restrictions before deployment is marked complete.
+
+The portal remains the operational source of truth. A locally scheduled appointment is retained with a visible sync failure if Easy!Appointments is temporarily unavailable, so the slot stays blocked and Admin can retry safely.
