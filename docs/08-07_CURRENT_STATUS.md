@@ -16,7 +16,7 @@
 | Lead and duplicate testing | Pending | Submit one synthetic lead, verify IDs/source/timestamp, then repeat it to test duplicate prevention |
 | `portal.catalogs.pk` | Blocked by HostBreak domain dependency | Live test on 18 September opened `https://portal.catalogs.pk/login` and displayed Better Talk. HostBreak has no redirect rule; the subdomain has the wrong document root: `/home/catalogs/public_html/portal.bettertalk.pk`. The requested source layout is now in place: `/home/catalogs/catalogs-site` for the Catalogs website and `/home/catalogs/catalogs-app` for the intended Catalogs portal. HostBreak rejects the in-place document-root update and states that `portal.catalogs.pk` cannot be deleted unless `portal.bettertalk.pk` is deleted first. Do not delete or alter the working Better Talk portal to force this change. |
 | Better Talk favicon | Source updated / QA | Source points to the Better Talk logo; production favicon remains unverified after rollback |
-| Cloud Browser | Blocked again in fresh session | Two fresh recovery attempts on 17 September could not list or create a controllable tab; each ended in the same CDP tab-service timeout. Earlier in the day HostBreak opened, but one-click cPanel returned `502 Bad Gateway — Connection refused` and the embedded file-manager route was blocked |
+| HostBreak/cPanel access | Restored for appointment deployment | On 18 September, authenticated HostBreak, cPanel, Backup, and phpMyAdmin access worked. The Better Talk production database was identified as `catalogs_btp`. A completed full-account backup is visible in cPanel as `backup-9.18.2026_18-05-11_catalogs.tar.gz`. The appointment migration was deliberately not run before the session pause. |
 
 ## 1. Business and Channels
 
@@ -41,19 +41,19 @@
 | Website lead sync | Partially deployed / To verify | Backend exists; fix live form, submit one synthetic lead, and trace its portal/database record |
 | Lead status changes | Pending/To verify | Confirm role-based dropdown and audit history |
 | User management | Pending/To verify | Confirm admin can add/edit/deactivate roles |
-| Doctor management | Merged source implementation / CI passed | PR #2 is on `main` with Doctor ID/pseudonym creation plus Doctor/Admin availability controls; database, Easy!Appointments, role, and production tests remain pending |
+| Doctor management | Production schema deployed / application tests pending | PR #2 is on `main`; the production schema and Doctor ID backfill are validated. Easy!Appointments configuration plus Admin/Doctor role tests remain pending |
 | Agent intake notes | Pending/To verify | Confirm structured and internal notes |
 | Agent payment management | Pending/To verify | Confirm request, proof, status, reference |
-| Agent doctor scheduling | Merged source foundation / CI passed | PR #1 merged to `main` as `ba05d6a`; database, Easy!Appointments, role, concurrency, and production tests remain pending |
+| Agent doctor scheduling | Production schema deployed / application tests pending | PR #1 merged as `ba05d6a`; production schema validation passed. Easy!Appointments, role, concurrency, and live workflow tests remain pending |
 | Doctor portal access | Pending/To verify | Confirm assigned appointments only |
 | Doctor direct calling | Pending/To verify | Confirm direct call without agent bridging |
 | Call IDs/history | Pending/To verify | Confirm linkage to client and appointment |
 | Returning-client lookup | Pending/To verify | Confirm phone/ID/reference search |
 | Audit logs | Pending/To verify | Confirm actor/time/before-after values |
 | Easy!Appointments deployment | Pending | Approved as scheduling engine; hosting/configuration not yet installed or tested |
-| 15-minute temporary slot holds | Merged source foundation / CI passed | Atomic hold code is on `main`; database, concurrent-agent, expiry, and production tests remain pending |
+| 15-minute temporary slot holds | Production schema deployed / behavior pending | `appointment_holds` exists in production; concurrent-agent, expiry, conversion, and conflict tests remain pending |
 | Customer login and appointment page | Pending | Approved route and access rules; not yet implemented/tested |
-| Case/Agent Call/Doctor Call identifier model | Merged source migration / Pending deployment | Additive migration is on `main`; database migration and linked-call production tests remain pending |
+| Case/Agent Call/Doctor Call identifier model | Production schema deployed / linkage tests pending | Migration completed successfully; existing appointment, call, doctor, and patient backfills have zero missing required values. End-to-end linked-call tests remain pending |
 
 ## 3. Approved Requirements Already Captured
 
@@ -95,6 +95,17 @@
 - GitHub Actions run `35346914933` passed native PHP syntax checks and the expanded appointment/availability tests for working plans, multiple breaks, invalid ranges, date exceptions, and Pakistan-to-UTC leave conversion.
 - Pull request #2 was merged to `main` on 18 September 2026 as commit `a45d795` after successful CI. No production database migration, Easy!Appointments installation, HostBreak file, or live portal behavior was changed or tested.
 
+## 3D. Appointment Production Migration — 18 September 2026
+
+- Authenticated HostBreak access, one-click cPanel, and phpMyAdmin were working in this session.
+- phpMyAdmin confirmed that `catalogs_btp` is the Better Talk production database; its existing tables include `appointments`, `calls`, `cases`, `doctor_profiles`, `patients`, `payments`, and `users`.
+- Direct browser downloads of the phpMyAdmin/cPanel SQL backup failed because the browser download channel returned `Fetch domain is not enabled`; no local SQL file was claimed or used.
+- A server-side cPanel full-account backup completed successfully and is listed as `backup-9.18.2026_18-05-11_catalogs.tar.gz` with timestamp 18 September 2026 18:05:11.
+- After the pause, `portal/sql/appointment_module_migration.sql` was imported exactly once into `catalogs_btp`. phpMyAdmin reported: `Import has been successfully finished, 20 queries executed.` Only MySQL deprecation warnings were shown; no migration error occurred.
+- Read-only validation passed: all 8 expected new tables exist; `BT-15`, `BT-30`, `BT-45`, and `BT-60` are active; the existing appointment has no missing Appointment ID/end time; both existing calls have call codes/kinds; the existing doctor has a Doctor ID; and both patients with normalized phones have normalized login mobiles.
+- No Easy!Appointments database/user/application has been created yet. Softaculous does not offer Easy!Appointments on this host. Official stable release `1.6.0` was downloaded from the upstream GitHub release and matched the published SHA-256 `299f8da75583ea185992ece4ac0b10e98f673825edbf75116446d99001911e60`.
+- Next action requires action-time approval to create a dedicated Easy!Appointments database/user with limited privileges and install the verified package at `schedule.bettertalk.pk`.
+
 ## 4. Next Status Update Method
 
 After each implementation/testing session, move functions into `Complete`, `Failed`, `Blocked`, or `Pending`, and record test evidence such as test lead ID, test role, timestamp, and observed result. Do not store live client-sensitive data in this document.
@@ -118,12 +129,13 @@ After each implementation/testing session, move functions into `Complete`, `Fail
 
 ## 5. Functionality-First Execution Order
 
-1. Restore reliable HostBreak file access or configure a secure GitHub-to-HostBreak deployment route without sharing credentials in chat.
-2. Deploy the CI-verified HostBreak SPA artifact while preserving the existing rollback archive, then reproduce and fix any remaining contact-form focus/typing failure with the smallest compatible production change.
-3. Verify one synthetic lead end-to-end, including Client ID, Lead ID, source, timestamp, fields, and duplicate prevention.
-4. Complete P0 role-security and audit-trail verification.
-5. Complete P1 modules: lead statuses, user management, doctor profiles, agent notes, payment management, appointments, and doctor workspace/direct calling.
-6. Complete P2 linkage: Call IDs, payment references, WhatsApp/IVR lead creation, and returning-client history.
-7. Perform P3 QA, including `portal.catalogs.pk`, favicon, mobile behavior, edge cases, privacy, backup/export, and visual polish.
+1. Create a dedicated least-privilege Easy!Appointments database/user and install/configure verified release `1.6.0` at `schedule.bettertalk.pk`; keep the Better Talk Portal as the operational master.
+2. Map the four services and doctor provider, configure API access, and validate Portal ↔ Easy!Appointments synchronization.
+3. Deploy the CI-verified HostBreak SPA artifact while preserving the existing rollback archive, then reproduce and fix any remaining contact-form focus/typing failure with the smallest compatible production change.
+4. Verify one synthetic lead end-to-end, including Client ID, Lead ID, source, timestamp, fields, and duplicate prevention.
+5. Complete P0 role-security and audit-trail verification.
+6. Complete P1 modules: lead statuses, user management, doctor profiles, agent notes, payment management, appointments, and doctor workspace/direct calling.
+7. Complete P2 linkage: Call IDs, payment references, WhatsApp/IVR lead creation, and returning-client history.
+8. Perform P3 QA, including `portal.catalogs.pk`, favicon, mobile behavior, edge cases, privacy, backup/export, and visual polish.
 
 Do not redesign working pages or use the previously prepared static contact-page hotfix unless the user explicitly changes direction. Fix `portal.catalogs.pk` earlier only if it blocks module testing or creates an immediate security/privacy risk.
