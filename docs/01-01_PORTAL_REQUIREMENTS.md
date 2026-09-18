@@ -1,11 +1,14 @@
 # Better Talk — Portal Requirements
 
+**Last approved update:** 18 September 2026
+
 ## 1. Applications
 
 | Application | Purpose |
 |---|---|
 | Public Better Talk website | Explain service, capture leads, and provide contact/WhatsApp actions |
 | `portal.bettertalk.pk` | Internal operations for admin, agents, and doctors |
+| `bettertalk.pk/customer-login` | Customer login for appointment/history visibility and controlled requests |
 
 ## 2. Website-to-Portal Lead Sync
 
@@ -32,6 +35,7 @@ Dashboard should show:
 - Appointments today/upcoming/missed/completed.
 - Doctors available/unavailable and active/inactive.
 - Call activity and exceptions requiring attention.
+- Active temporary slot holds, hold owner, and expiry time.
 
 ## 4. Lead Management
 
@@ -53,6 +57,8 @@ Admin must be able to:
 - Add, edit, activate, deactivate, and reset access for users.
 - Assign roles: Admin, Agent/Coordinator, Doctor.
 - Create doctor details: full name, phone, email, gender, specialties/categories, qualifications/experience, availability, active status, and internal notes.
+- Create the permanent Doctor ID and approved customer-facing pseudonym.
+- Assign one or more supported durations per doctor from 15/30/45/60 minutes.
 - Control whether a doctor can initiate calls through the portal.
 - View last login and important account actions.
 - Prevent deletion of users who own history; deactivate them instead.
@@ -67,7 +73,8 @@ Agent should be able to:
 - Update permitted lead statuses.
 - Send/record payment information and update payment status with proof/reference.
 - View doctor profiles and availability.
-- Schedule, reschedule, or cancel appointments according to policy.
+- Start a 15-minute temporary slot hold, then schedule, reschedule, or cancel appointments according to policy.
+- Review and approve/reject customer cancellation and reschedule requests.
 - Retrieve returning-client history.
 
 ## 7. Doctor Workspace
@@ -80,12 +87,33 @@ Doctor should be able to:
 - Mark `Started`, `Completed`, `No Answer`, or `Needs Rescheduling`.
 - Add protected session outcome/notes according to Better Talk policy.
 - Not view unrelated clients, other doctors' schedules, or business-wide payments.
+- Edit own recurring availability, breaks, exceptions, and leave; Admin may override any entry with audit history.
 
-## 8. Search and History
+## 8. Customer Workspace
 
-Search should support Client ID, Call ID, appointment ID, payment reference, phone/WhatsApp number, and client name. The client profile should present a dated timeline of all linked interactions.
+- Public route: `bettertalk.pk/customer-login`.
+- Login requires mobile number plus password. Normalize safe variants such as country-code, leading-zero, spaces, and hyphens so the same Pakistani number resolves consistently.
+- Forgotten-password recovery uses an OTP sent to the verified mobile number.
+- Display upcoming and past appointments, including cancelled/no-answer records, Appointment ID, date/time, duration, status, and payment status.
+- Display the doctor's approved pseudonym and approved public profile information such as specialty, categories, qualifications, and experience. Do not display a picture, real/internal name, personal phone/email, internal notes, Call IDs, or confidential session notes.
+- Allow the customer to submit `Reschedule Requested` or `Cancellation Requested`. Only an Agent or Admin may approve and apply the actual appointment change.
+- The customer cannot self-book in V1.
+- V1 sends no automated appointment reminders.
 
-## 9. Acceptance Tests
+## 9. Scheduling Integration and Concurrency
+
+- The Better Talk Portal remains the master operational system; Easy!Appointments is integrated as the scheduling/availability engine.
+- Availability shown to Agent, Doctor, and Admin must be synchronized from the same scheduling source.
+- A booking action creates a 15-minute temporary hold. During the hold, other users see that time as unavailable.
+- Confirmed booking atomically converts the hold into an appointment. Expired or abandoned holds automatically release the slot.
+- A hold does not receive a final Appointment ID. Hold records must retain actor, doctor, duration, start time, creation time, and expiry for operational/audit purposes.
+- Scheduling requires a successful payment linked to the Case ID unless Admin records an override reason.
+
+## 10. Search and History
+
+Search should support Client ID, Case ID, Agent Call ID, Doctor Call ID, Appointment ID, Doctor ID, payment reference, phone/WhatsApp number, and client name. The client profile should present a dated timeline of all linked interactions.
+
+## 11. Acceptance Tests
 
 - A new website submission appears once in the portal with correct source and answers.
 - A repeat client creates a new lead under the correct existing client.
@@ -94,4 +122,6 @@ Search should support Client ID, Call ID, appointment ID, payment reference, pho
 - Doctor sees the appointment and can record the call outcome.
 - Admin sees the complete audit history across all roles.
 - Unauthorized roles cannot see or change restricted data.
-
+- Two agents cannot schedule the same doctor/slot; a 15-minute hold hides the slot and expiry releases it.
+- Customer can log in with normalized mobile number + password and recover a forgotten password by OTP.
+- Customer sees the doctor pseudonym/public details without picture or private identifiers and can submit, but not directly execute, cancellation/reschedule requests.

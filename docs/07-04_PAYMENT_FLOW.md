@@ -1,5 +1,7 @@
 # Better Talk — Payment Flow
 
+**Last approved update:** 18 September 2026
+
 ## 1. V1 Operating Model
 
 Agents manage payment requests and confirmation manually through the portal. Automated gateway reconciliation may be added later.
@@ -14,6 +16,7 @@ Current/considered collection channels include Better Talk business bank account
 | Link/details sent | Save channel, amount, reference, sent time | `Payment Pending` |
 | Client pays | Receive provider reference/proof | `Verification Pending` |
 | Agent verifies | Check merchant/bank record; upload proof | `Paid` |
+| Doctor allocation | Successful payment enables mapping the Doctor ID to the Case ID | `Paid / Allocation Ready` |
 | Appointment booked | Link payment to appointment | `Paid / Allocated` |
 | Failure/expiry | Record reason | `Failed` or `Expired` |
 | Refund | Record amount, reason, approver, reference | `Refunded` or `Partially Refunded` |
@@ -23,7 +26,7 @@ Current/considered collection channels include Better Talk business bank account
 Required fields:
 
 - Payment ID and public payment reference.
-- Client ID, lead ID, originating Call ID, and appointment ID when available.
+- Client ID, Case ID, lead ID, originating Agent Call ID(s), Doctor ID after allocation, and Appointment ID when available.
 - Requested and received amount, currency, and service/offer.
 - Payment method/provider.
 - Provider transaction/reference ID.
@@ -38,6 +41,7 @@ Required fields:
 - **IVR-origin client:** Send payment link by SMS. A separate `wa.me` link may be sent so the client—not Better Talk—initiates WhatsApp.
 - Do not mark payment `Paid` solely because a screenshot was received; verify against the merchant/bank record where possible.
 - Prevent two appointments from accidentally consuming the same payment unless an authorized adjustment is recorded.
+- Scheduling requires `Paid` status for the Case ID; Admin may override only with a mandatory reason and audit entry.
 
 ## 5. Identity and Authorization
 
@@ -49,7 +53,7 @@ Required fields:
 
 ## 6. Reconciliation and Exceptions
 
-- Search by Payment ID, provider reference, Client ID, Call ID, or appointment.
+- Search by Payment ID, provider reference, Client ID, Case ID, Agent Call ID, Doctor Call ID, or Appointment ID.
 - Flag amount mismatch, duplicate reference, pending/unclear proof, chargeback, refund, and expired link.
 - Admin can correct statuses with a mandatory reason and audit trail.
 - Agent permissions for refunds or manual overrides should be restricted.
@@ -61,4 +65,3 @@ Required fields:
 - Who may approve refunds and payment overrides.
 - Payment-link expiry and reuse rules.
 - Whether provider webhooks are included in V1 or a later phase.
-

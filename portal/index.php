@@ -10,6 +10,7 @@ if (!is_file($configPath)) {
     exit;
 }
 $config = require $configPath;
+require_once __DIR__ . '/app/AppointmentService.php';
 
 function db(): PDO {
     static $pdo = null;
@@ -24,6 +25,15 @@ function db(): PDO {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
     return $pdo;
+}
+
+function appointment_service(): AppointmentService {
+    static $service = null;
+    global $config;
+    if (!$service instanceof AppointmentService) {
+        $service = new AppointmentService(db(), $config);
+    }
+    return $service;
 }
 
 function h(?string $value): string {
@@ -111,7 +121,7 @@ function status_badge(string $status): string {
 }
 
 function doctors(): array {
-    return db()->query("SELECT u.id,u.name,dp.specialties FROM users u LEFT JOIN doctor_profiles dp ON dp.user_id=u.id WHERE u.role='doctor' AND u.status='active' ORDER BY u.name")->fetchAll();
+    return db()->query("SELECT u.id,u.name,dp.doctor_code,dp.pseudonym,dp.specialties FROM users u LEFT JOIN doctor_profiles dp ON dp.user_id=u.id WHERE u.role='doctor' AND u.status='active' ORDER BY u.name")->fetchAll();
 }
 
 function case_statuses_for(array $u): array {
@@ -263,7 +273,15 @@ function cases(): void {
 function case_detail(): void {
     $u = require_user();
     $id = (int)($_GET['id'] ?? 0);
-    $stmt = db()->prepare('SELECT c.*, p.name patient_name, p.city, p.plan_name, p.notes, p.client_code, l.lead_code, l.source_channel lead_source, l.received_at lead_received_at, l.form_answers, d.name doctor_name FROM cases c JOIN patients p ON p.id=c.patient_id LEFT JOIN leads l ON l.id=c.lead_id LEFT JOIN users d ON d.id=c.assigned_doctor_id WHERE c.id=?');
+    $stmt = db()->prepare("SELECT c.*, p.name patient_name, p.city, p.plan_name, p.notes, p.client_code,
+        l.lead_code, l.source_channel lead_source, l.received_at lead_received_at, l.form_answers,
+        d.name doctor_name,
+        (SELECT py.id FROM payments py WHERE py.case_id=c.id AND py.status='paid' ORDER BY py.id DESC LIMIT 1) paid_payment_id
+        FROM cases c
+        JOIN patients p ON p.id=c.patient_id
+        LEFT JOIN leads l ON l.id=c.lead_id
+        LEFT JOIN users d ON d.id=c.assigned_doctor_id
+        WHERE c.id=?");
     $stmt->execute([$id]);
     $case = $stmt->fetch();
     if (!$case || ($u['role'] === 'doctor' && (int)$case['assigned_doctor_id'] !== $u['id'])) {
@@ -279,11 +297,12 @@ function case_detail(): void {
     }
     $body .= '</div></section>';
     if (can($u, ['admin','agent'])) {
-        $doctorOptions = ['' => 'Unassigned'];
-        foreach (doctors() as $doctor) {
-            $doctorOptions[$doctor['id']] = $doctor['name'] . ($doctor['specialties'] ? ' - ' . $doctor['specialties'] : '');
+        if ($case['paid_payment_id']) {
+            $body .= '<section class="panel"><div class="panel-head"><div><h2>Appointment scheduling</h2><p>Payment verified. Select a doctor, permitted duration and live Easy!Appointments slot.</p></div><a class="buttonlink" href="/appointment-book?case_id=' . (int)$case['id'] . '">Schedule appointment</a></div></section>';
+        } else {
+            $body .= '<section class="panel"><h2>Appointment scheduling</h2><p class="muted">Verify payment before allocating a doctor or holding a slot.</p></section>';
         }
-        $body .= '<section class="panel"><h2>Agent/admin controls</h2><form method="post" action="/case-update" class="form inline-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="case_id" value="' . (int)$case['id'] . '"><label>Case status<select name="status">' . option_list(case_statuses_for($u), $case['status']) . '</select></label><label>Assign doctor<select name="doctor_id">' . option_list($doctorOptions, $case['assigned_doctor_id']) . '</select></label><label>Payment status<select name="payment_status"><option value="">No change</option><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></label><label>Amount PKR<input name="amount_pkr" type="number" step="1" min="0" placeholder="1200"></label><label>Payment ref<input name="payment_ref" placeholder="JazzCash / bank ref"></label><label>Appointment time<input name="scheduled_at" type="datetime-local"></label><label>Duration<input name="duration_minutes" type="number" min="10" value="30"></label><label>Internal note<textarea name="summary">' . h($case['summary']) . '</textarea></label><button>Save updates</button></form></section>';
+        $body .= '<section class="panel"><h2>Agent/admin controls</h2><form method="post" action="/case-update" class="form inline-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="case_id" value="' . (int)$case['id'] . '"><label>Case status<select name="status">' . option_list(case_statuses_for($u), $case['status']) . '</select></label><label>Payment status<select name="payment_status"><option value="">No change</option><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></label><label>Amount PKR<input name="amount_pkr" type="number" step="1" min="0" placeholder="1200"></label><label>Payment ref<input name="payment_ref" placeholder="JazzCash / bank ref"></label><label>Internal note<textarea name="summary">' . h($case['summary']) . '</textarea></label><button>Save updates</button></form></section>';
     } elseif ($u['role'] === 'doctor') {
         $body .= '<section class="panel"><h2>Doctor status</h2><form method="post" action="/case-update" class="form inline-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="case_id" value="' . (int)$case['id'] . '"><label>Status<select name="status">' . option_list(case_statuses_for($u), $case['status']) . '</select></label><button>Update status</button></form></section>';
     }
@@ -314,20 +333,12 @@ function case_update(): void {
     $pdo = db();
     $pdo->beginTransaction();
     if (can($u, ['admin','agent'])) {
-        $doctorId = $_POST['doctor_id'] !== '' ? (int)$_POST['doctor_id'] : null;
+        $doctorId = $case['assigned_doctor_id'] ? (int)$case['assigned_doctor_id'] : null;
         $stmt = $pdo->prepare('UPDATE cases SET status=?, assigned_doctor_id=?, summary=? WHERE id=?');
         $stmt->execute([$status, $doctorId, trim($_POST['summary'] ?? ''), $caseId]);
         if (!empty($_POST['payment_status'])) {
             $stmt = $pdo->prepare('INSERT INTO payments (case_id, provider, payment_ref, amount_pkr, status) VALUES (?, ?, ?, ?, ?)');
             $stmt->execute([$caseId, 'manual', trim($_POST['payment_ref'] ?? ''), (float)($_POST['amount_pkr'] ?? 0), $_POST['payment_status']]);
-        }
-        if (!empty($_POST['scheduled_at']) && $doctorId) {
-            $stmt = $pdo->prepare('SELECT patient_id FROM cases WHERE id=?');
-            $stmt->execute([$caseId]);
-            $patientId = (int)$stmt->fetchColumn();
-            $stmt = $pdo->prepare('INSERT INTO appointments (case_id, patient_id, doctor_id, agent_id, scheduled_at, duration_minutes, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
-            $stmt->execute([$caseId, $patientId, $doctorId, $u['id'], str_replace('T', ' ', $_POST['scheduled_at']) . ':00', (int)($_POST['duration_minutes'] ?: 30), 'confirmed']);
-            $pdo->prepare("UPDATE cases SET status='scheduled' WHERE id=?")->execute([$caseId]);
         }
     } else {
         $stmt = $pdo->prepare('UPDATE cases SET status=? WHERE id=?');
@@ -348,12 +359,135 @@ function appointments(): void {
     } else {
         $rows = db()->query('SELECT a.*, c.case_code, p.name patient_name, d.name doctor_name FROM appointments a JOIN cases c ON c.id=a.case_id JOIN patients p ON p.id=a.patient_id JOIN users d ON d.id=a.doctor_id ORDER BY a.scheduled_at DESC LIMIT 100')->fetchAll();
     }
-    $body = '<header><p>SCHEDULE</p><h1>Appointments</h1></header><section class="panel"><table><tr><th>Time</th><th>Case</th><th>Patient</th><th>Doctor</th><th>Status</th></tr>';
+    $notice = isset($_GET['created']) ? '<p class="notice">Appointment ' . h($_GET['created']) . ' scheduled.</p>' : '';
+    $body = '<header><p>SCHEDULE</p><h1>Appointments</h1></header>' . $notice . '<section class="panel"><table><tr><th>Appointment</th><th>Time (PKT)</th><th>Duration</th><th>Case</th><th>Patient</th><th>Doctor</th><th>Status</th><th>Sync</th></tr>';
     foreach ($rows as $row) {
-        $body .= '<tr><td>' . h($row['scheduled_at']) . '</td><td>' . h($row['case_code']) . '</td><td>' . h($row['patient_name']) . '</td><td>' . h($row['doctor_name']) . '</td><td>' . status_badge($row['status']) . '</td></tr>';
+        $sync = status_badge($row['sync_status'] ?? 'not_configured');
+        if ($u['role'] === 'admin' && ($row['sync_status'] ?? '') === 'failed') {
+            $sync .= '<form method="post" action="/appointment-sync" class="compact-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="appointment_id" value="' . (int)$row['id'] . '"><button>Retry</button></form>';
+        }
+        $body .= '<tr><td>' . h($row['appointment_code'] ?? ('#' . $row['id'])) . '</td><td>' . h(AppointmentService::utcToPakistan($row['scheduled_at'])) . '</td><td>' . h((string)$row['duration_minutes']) . ' min</td><td><a href="/case?id=' . (int)$row['case_id'] . '">' . h($row['case_code']) . '</a></td><td>' . h($row['patient_name']) . '</td><td>' . h($row['doctor_name']) . '</td><td>' . status_badge($row['status']) . '</td><td>' . $sync . '</td></tr>';
     }
     $body .= '</table></section>';
     layout('Appointments', $body);
+}
+
+function appointment_book(): void {
+    $u = require_user();
+    if (!can($u, ['admin', 'agent'])) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+    $caseId = (int)($_GET['case_id'] ?? 0);
+    $stmt = db()->prepare("SELECT c.id,c.case_code,p.name patient_name,
+        (SELECT py.id FROM payments py WHERE py.case_id=c.id AND py.status='paid' ORDER BY py.id DESC LIMIT 1) paid_payment_id
+        FROM cases c JOIN patients p ON p.id=c.patient_id WHERE c.id=?");
+    $stmt->execute([$caseId]);
+    $case = $stmt->fetch();
+    if (!$case) {
+        http_response_code(404);
+        layout('Not found', '<h1>Case not found</h1>');
+        return;
+    }
+    if (!$case['paid_payment_id']) {
+        http_response_code(409);
+        layout('Payment required', '<section class="panel"><h1>Payment required</h1><p>Verify payment before allocating a doctor or holding a slot.</p><a href="/case?id=' . $caseId . '">Return to case</a></section>');
+        return;
+    }
+
+    $rows = db()->query("SELECT u.id doctor_id,u.name,dp.doctor_code,dp.specialties,
+        s.id service_id,s.duration_minutes
+        FROM users u
+        JOIN doctor_profiles dp ON dp.user_id=u.id
+        JOIN doctor_appointment_services ds ON ds.doctor_id=u.id AND ds.active=1
+        JOIN appointment_services s ON s.id=ds.appointment_service_id AND s.active=1
+        WHERE u.role='doctor' AND u.status='active'
+        ORDER BY u.name,s.duration_minutes")->fetchAll();
+    $choices = [];
+    foreach ($rows as $row) {
+        $key = (int)$row['doctor_id'] . ':' . (int)$row['service_id'];
+        $choices[$key] = $row['name'] . ' (' . $row['doctor_code'] . ') — ' . $row['duration_minutes'] . ' minutes' . ($row['specialties'] ? ' — ' . $row['specialties'] : '');
+    }
+    $selection = (string)($_GET['selection'] ?? '');
+    $date = (string)($_GET['date'] ?? (new DateTimeImmutable('tomorrow', new DateTimeZone(AppointmentService::DISPLAY_TIMEZONE)))->format('Y-m-d'));
+    $body = '<header><p>APPOINTMENT</p><h1>Schedule ' . h($case['case_code']) . '</h1></header><section class="panel"><p><b>Client:</b> ' . h($case['patient_name']) . '</p><form method="get" action="/appointment-book" class="form inline-form"><input type="hidden" name="case_id" value="' . $caseId . '"><label>Doctor and duration<select name="selection" required><option value="">Select</option>' . option_list($choices, $selection) . '</select></label><label>Date (PKT)<input type="date" name="date" value="' . h($date) . '" required></label><button>Show available slots</button></form></section>';
+
+    if ($selection !== '' && preg_match('/^(\d+):(\d+)$/', $selection, $match)) {
+        try {
+            $slots = appointment_service()->availability((int)$match[1], (int)$match[2], $date);
+            $body .= '<section class="panel"><h2>Available slots</h2><div class="slot-grid">';
+            foreach ($slots as $slot) {
+                $body .= '<form method="post" action="/appointment-hold"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="case_id" value="' . $caseId . '"><input type="hidden" name="doctor_id" value="' . (int)$match[1] . '"><input type="hidden" name="service_id" value="' . (int)$match[2] . '"><input type="hidden" name="date" value="' . h($date) . '"><input type="hidden" name="time" value="' . h($slot) . '"><button>' . h($slot) . '</button></form>';
+            }
+            if (!$slots) {
+                $body .= '<p>No available slots for this date.</p>';
+            }
+            $body .= '</div></section>';
+        } catch (Throwable $error) {
+            $body .= '<p class="error">' . h($error->getMessage()) . '</p>';
+        }
+    }
+    layout('Schedule appointment', $body);
+}
+
+function appointment_hold(): void {
+    $u = require_user();
+    if (!can($u, ['admin', 'agent'])) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+    check_csrf();
+    try {
+        $hold = appointment_service()->createHold(
+            (int)($_POST['case_id'] ?? 0),
+            (int)($_POST['doctor_id'] ?? 0),
+            (int)($_POST['service_id'] ?? 0),
+            (int)$u['id'],
+            (string)($_POST['date'] ?? ''),
+            (string)($_POST['time'] ?? '')
+        );
+        audit((int)$u['id'], 'appointment.hold.created', 'case', (string)($_POST['case_id'] ?? ''), [
+            'expires_at' => $hold['expires_at'],
+            'start_at' => $hold['start_at'],
+        ]);
+        $body = '<header><p>15-MINUTE HOLD</p><h1>Confirm appointment</h1></header><section class="panel"><p class="notice">This slot is held until ' . h(AppointmentService::utcToPakistan($hold['expires_at'])) . ' PKT.</p><p><b>Time:</b> ' . h(AppointmentService::utcToPakistan($hold['start_at'])) . ' PKT</p><p><b>Duration:</b> ' . (int)$hold['duration_minutes'] . ' minutes</p><form method="post" action="/appointment-schedule"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="hold_token" value="' . h($hold['token']) . '"><button>Schedule</button></form></section>';
+        layout('Confirm appointment', $body);
+    } catch (Throwable $error) {
+        http_response_code(409);
+        layout('Slot unavailable', '<section class="panel"><h1>Could not hold slot</h1><p class="error">' . h($error->getMessage()) . '</p><a href="/case?id=' . (int)($_POST['case_id'] ?? 0) . '">Return to case</a></section>');
+    }
+}
+
+function appointment_schedule(): void {
+    $u = require_user();
+    if (!can($u, ['admin', 'agent'])) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+    check_csrf();
+    try {
+        $result = appointment_service()->confirmHold((string)($_POST['hold_token'] ?? ''), (int)$u['id'], (string)$u['role']);
+        audit((int)$u['id'], 'appointment.scheduled', 'appointment', (string)$result['appointment_id'], $result);
+        header('Location: /appointments?created=' . rawurlencode((string)$result['appointment_code']));
+        exit;
+    } catch (Throwable $error) {
+        http_response_code(409);
+        layout('Scheduling failed', '<section class="panel"><h1>Scheduling failed</h1><p class="error">' . h($error->getMessage()) . '</p><a href="/appointments">Appointments</a></section>');
+    }
+}
+
+function appointment_sync(): void {
+    $u = require_user();
+    if (!can($u, ['admin'])) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+    check_csrf();
+    $appointmentId = (int)($_POST['appointment_id'] ?? 0);
+    $result = appointment_service()->syncAppointment($appointmentId);
+    audit((int)$u['id'], 'appointment.sync.retry', 'appointment', (string)$appointmentId, $result);
+    header('Location: /appointments');
+    exit;
 }
 
 function calls(): void {
@@ -576,6 +710,10 @@ elseif ($r === 'cases') cases();
 elseif ($r === 'case') case_detail();
 elseif ($r === 'case-update') case_update();
 elseif ($r === 'appointments') appointments();
+elseif ($r === 'appointment-book') appointment_book();
+elseif ($r === 'appointment-hold') appointment_hold();
+elseif ($r === 'appointment-schedule') appointment_schedule();
+elseif ($r === 'appointment-sync') appointment_sync();
 elseif ($r === 'calls') calls();
 elseif ($r === 'payments') payments();
 elseif ($r === 'new-case') new_case();
