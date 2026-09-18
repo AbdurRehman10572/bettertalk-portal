@@ -289,7 +289,8 @@ final class AppointmentService
     private function doctorServiceContext(int $doctorId, int $serviceId): array
     {
         $stmt = $this->pdo->prepare(
-            "SELECT u.id doctor_id, dp.ea_provider_id, s.id service_id, s.duration_minutes, s.ea_service_id
+            "SELECT u.id doctor_id, dp.ea_provider_id, dp.availability_sync_status,
+                    s.id service_id, s.duration_minutes, s.ea_service_id
              FROM users u
              JOIN doctor_profiles dp ON dp.user_id=u.id
              JOIN doctor_appointment_services ds ON ds.doctor_id=u.id AND ds.active=1
@@ -300,6 +301,9 @@ final class AppointmentService
         $row = $stmt->fetch();
         if (!$row || !in_array((int)$row['duration_minutes'], [15, 30, 45, 60], true)) {
             throw new RuntimeException('This doctor does not offer the selected duration.');
+        }
+        if (($row['availability_sync_status'] ?? '') !== 'synced') {
+            throw new RuntimeException('This doctor’s availability is not synchronized yet.');
         }
         return $row;
     }
@@ -337,6 +341,15 @@ final class AppointmentService
             "SELECT id FROM appointments
              WHERE doctor_id=? AND scheduled_at < ? AND end_at > ?
                AND status NOT IN ('cancelled','cancelled_by_client','cancelled_by_better_talk','rescheduled')
+             LIMIT 1" . $lock
+        );
+        $stmt->execute([$doctorId, $end->format('Y-m-d H:i:s'), $start->format('Y-m-d H:i:s')]);
+        if ($stmt->fetch()) {
+            return true;
+        }
+        $stmt = $this->pdo->prepare(
+            "SELECT id FROM doctor_unavailability_periods
+             WHERE doctor_id=? AND status='active' AND start_at < ? AND end_at > ?
              LIMIT 1" . $lock
         );
         $stmt->execute([$doctorId, $end->format('Y-m-d H:i:s'), $start->format('Y-m-d H:i:s')]);

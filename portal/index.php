@@ -11,6 +11,7 @@ if (!is_file($configPath)) {
 }
 $config = require $configPath;
 require_once __DIR__ . '/app/AppointmentService.php';
+require_once __DIR__ . '/app/AvailabilityService.php';
 
 function db(): PDO {
     static $pdo = null;
@@ -32,6 +33,15 @@ function appointment_service(): AppointmentService {
     global $config;
     if (!$service instanceof AppointmentService) {
         $service = new AppointmentService(db(), $config);
+    }
+    return $service;
+}
+
+function availability_service(): AvailabilityService {
+    static $service = null;
+    global $config;
+    if (!$service instanceof AvailabilityService) {
+        $service = new AvailabilityService(db(), $config);
     }
     return $service;
 }
@@ -103,6 +113,9 @@ function nav(array $u): string {
     }
     if (can($u, ['admin'])) {
         $items['users'] = 'Users';
+    }
+    if (can($u, ['admin', 'doctor'])) {
+        $items['doctor-availability'] = 'Availability';
     }
     $out = '<nav>';
     foreach ($items as $path => $label) {
@@ -222,15 +235,198 @@ function user_new(): void {
         $stmt->execute([$role, trim($_POST['name']), strtolower(trim($_POST['email'])), trim($_POST['phone']), password_hash($password, PASSWORD_DEFAULT), $_POST['status'] ?? 'active']);
         $userId = (int)$pdo->lastInsertId();
         if ($role === 'doctor') {
-            $stmt = $pdo->prepare('INSERT INTO doctor_profiles (user_id, specialties, license_ref, ivr_extension, availability_note) VALUES (?, ?, ?, ?, ?)');
-            $stmt->execute([$userId, trim($_POST['specialties']), trim($_POST['license_ref']), trim($_POST['ivr_extension']), trim($_POST['availability_note'])]);
+            $doctorCode = 'DR-' . str_pad((string)$userId, 6, '0', STR_PAD_LEFT);
+            $stmt = $pdo->prepare('INSERT INTO doctor_profiles (user_id,doctor_code,pseudonym,specialties,license_ref,public_qualifications,public_experience,ivr_extension,availability_note,timezone,working_plan_json) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([$userId, $doctorCode, trim($_POST['pseudonym']), trim($_POST['specialties']), trim($_POST['license_ref']), trim($_POST['public_qualifications']), trim($_POST['public_experience']), trim($_POST['ivr_extension']), trim($_POST['availability_note']), AvailabilityService::TIMEZONE, json_encode(array_fill_keys(AvailabilityService::DAYS, null))]);
         }
         $pdo->commit();
         audit($u['id'], 'user.create', 'user', (string)$userId);
         $created = '<p class="notice">Created. Temporary password: <b>' . h($password) . '</b></p>';
     }
-    $body = '<header><p>ADMIN</p><h1>Add user / doctor</h1></header><section class="panel">' . $created . '<form method="post" class="form"><input type="hidden" name="csrf" value="' . csrf() . '"><label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>Phone<input name="phone"></label><label>Role<select name="role"><option value="agent">Agent</option><option value="doctor">Doctor</option><option value="admin">Admin</option><option value="patient">Patient</option></select></label><label>Status<select name="status"><option value="active">Active</option><option value="inactive">Inactive</option></select></label><label>Password optional<input name="password" placeholder="Leave blank to generate"></label><h2>Doctor details</h2><label>Specialties<input name="specialties" placeholder="Marriage, anxiety, student counselling"></label><label>License/reference<input name="license_ref"></label><label>IVR extension<input name="ivr_extension"></label><label>Availability note<input name="availability_note" placeholder="Weekdays 10am-6pm"></label><button>Create user</button></form></section>';
+    $body = '<header><p>ADMIN</p><h1>Add user / doctor</h1></header><section class="panel">' . $created . '<form method="post" class="form"><input type="hidden" name="csrf" value="' . csrf() . '"><label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>Phone<input name="phone"></label><label>Role<select name="role"><option value="agent">Agent</option><option value="doctor">Doctor</option><option value="admin">Admin</option><option value="patient">Patient</option></select></label><label>Status<select name="status"><option value="active">Active</option><option value="inactive">Inactive</option></select></label><label>Password optional<input name="password" placeholder="Leave blank to generate"></label><h2>Doctor details</h2><label>Customer-facing pseudonym<input name="pseudonym"></label><label>Specialties<input name="specialties" placeholder="Marriage, anxiety, student counselling"></label><label>Public qualifications<input name="public_qualifications"></label><label>Public experience<input name="public_experience"></label><label>License/reference<input name="license_ref"></label><label>IVR extension<input name="ivr_extension"></label><label>Availability note<input name="availability_note" placeholder="Weekdays 10am-6pm"></label><button>Create user</button></form></section>';
     layout('Add user', $body);
+}
+
+function availability_target(array $u): int {
+    if (!can($u, ['admin', 'doctor'])) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+    if ($u['role'] === 'doctor') {
+        return (int)$u['id'];
+    }
+    $doctorId = (int)($_REQUEST['doctor_id'] ?? 0);
+    if ($doctorId < 1) {
+        $doctorId = (int)(db()->query("SELECT id FROM users WHERE role='doctor' ORDER BY name LIMIT 1")->fetchColumn() ?: 0);
+    }
+    return $doctorId;
+}
+
+function availability_result_notice(array $result): string {
+    if (($result['sync_status'] ?? '') === 'synced') {
+        return '<p class="notice">Saved and synchronized with Easy!Appointments.</p>';
+    }
+    return '<p class="error">Saved locally, but scheduling sync needs attention: ' . h((string)($result['sync_error'] ?? 'not configured')) . '</p>';
+}
+
+function doctor_availability(): void {
+    $u = require_user();
+    $doctorId = availability_target($u);
+    if ($doctorId < 1) {
+        layout('Availability', '<section class="panel"><h1>No doctor accounts found</h1><p>Create a doctor before configuring availability.</p></section>');
+        return;
+    }
+    try {
+        $service = availability_service();
+        $doctor = $service->doctor($doctorId);
+        $plan = $service->workingPlan($doctor);
+        $services = $service->services($doctorId);
+        $exceptions = $service->exceptions($doctorId);
+        $unavailability = $service->unavailability($doctorId);
+    } catch (Throwable $error) {
+        http_response_code(404);
+        layout('Availability', '<section class="panel"><h1>Availability unavailable</h1><p class="error">' . h($error->getMessage()) . '</p></section>');
+        return;
+    }
+
+    $body = '<header><div><p>SCHEDULING</p><h1>Doctor availability</h1></div><span>' . h($doctor['name']) . '</span></header>';
+    if (isset($_SESSION['availability_notice'])) {
+        $body .= $_SESSION['availability_notice'];
+        unset($_SESSION['availability_notice']);
+    }
+    if ($u['role'] === 'admin') {
+        $doctorOptions = [];
+        foreach (db()->query("SELECT id,name FROM users WHERE role='doctor' ORDER BY name")->fetchAll() as $row) {
+            $doctorOptions[(int)$row['id']] = $row['name'];
+        }
+        $body .= '<section class="panel"><form method="get" action="/doctor-availability" class="form inline-form"><label>Doctor<select name="doctor_id">' . option_list($doctorOptions, $doctorId) . '</select></label><button>Open availability</button></form></section>';
+    }
+    $syncStatus = (string)($doctor['availability_sync_status'] ?? 'not_configured');
+    $body .= '<section class="panel"><div class="panel-head"><div><h2>Weekly working plan</h2><p>Times are shown in Pakistan Standard Time. Two break windows can be stored per day.</p></div>' . status_badge($syncStatus) . '</div>';
+    if (!empty($doctor['availability_sync_error'])) {
+        $body .= '<p class="error">' . h($doctor['availability_sync_error']) . '</p>';
+    }
+    $body .= '<form method="post" action="/availability-save" class="form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="doctor_id" value="' . $doctorId . '"><div class="availability-table"><table><tr><th>Day</th><th>Available</th><th>Start</th><th>End</th><th>Break 1</th><th>Break 2</th></tr>';
+    foreach (AvailabilityService::DAYS as $day) {
+        $row = is_array($plan[$day] ?? null) ? $plan[$day] : [];
+        $breaks = is_array($row['breaks'] ?? null) ? $row['breaks'] : [];
+        $checked = $row ? ' checked' : '';
+        $body .= '<tr><td><b>' . h(ucfirst($day)) . '</b></td><td><input type="checkbox" name="schedule[' . h($day) . '][enabled]" value="1"' . $checked . '></td>' .
+            '<td><input type="time" name="schedule[' . h($day) . '][start]" value="' . h($row['start'] ?? '09:00') . '"></td>' .
+            '<td><input type="time" name="schedule[' . h($day) . '][end]" value="' . h($row['end'] ?? '17:00') . '"></td>' .
+            '<td><div class="time-pair"><input type="time" name="schedule[' . h($day) . '][break_start][]" value="' . h($breaks[0]['start'] ?? '') . '"><input type="time" name="schedule[' . h($day) . '][break_end][]" value="' . h($breaks[0]['end'] ?? '') . '"></div></td>' .
+            '<td><div class="time-pair"><input type="time" name="schedule[' . h($day) . '][break_start][]" value="' . h($breaks[1]['start'] ?? '') . '"><input type="time" name="schedule[' . h($day) . '][break_end][]" value="' . h($breaks[1]['end'] ?? '') . '"></div></td></tr>';
+    }
+    $body .= '</table></div>';
+    if ($u['role'] === 'admin') {
+        $body .= '<div class="inline-form"><label>Easy!Appointments provider ID<input type="number" min="1" name="ea_provider_id" value="' . h((string)($doctor['ea_provider_id'] ?? '')) . '" required></label><fieldset><legend>Permitted durations</legend><div class="check-row">';
+        foreach ($services as $duration) {
+            $checked = (int)$duration['assigned'] === 1 ? ' checked' : '';
+            $mapped = $duration['ea_service_id'] ? '' : ' (mapping needed)';
+            $body .= '<label><input type="checkbox" name="service_ids[]" value="' . (int)$duration['id'] . '"' . $checked . '> ' . (int)$duration['duration_minutes'] . ' min' . h($mapped) . '<input type="number" min="1" name="service_ea_ids[' . (int)$duration['id'] . ']" value="' . h((string)($duration['ea_service_id'] ?? '')) . '" placeholder="EA service ID"></label>';
+        }
+        $body .= '</div></fieldset></div>';
+    } else {
+        $labels = [];
+        foreach ($services as $duration) {
+            if ((int)$duration['assigned'] === 1) {
+                $labels[] = (int)$duration['duration_minutes'] . ' minutes';
+            }
+        }
+        $body .= '<p><b>Permitted durations:</b> ' . h($labels ? implode(', ', $labels) : 'Admin has not assigned a duration') . '</p>';
+    }
+    $body .= '<button>Save weekly availability</button></form></section>';
+
+    $body .= '<div class="two-column"><section class="panel"><h2>Date exceptions</h2><p>Use this when one date has different working hours.</p><form method="post" action="/availability-exception-save" class="form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="doctor_id" value="' . $doctorId . '"><label>Date<input type="date" name="date" required></label><div class="inline-form"><label>Start<input type="time" name="start" required></label><label>End<input type="time" name="end" required></label></div><button>Save date exception</button></form><table><tr><th>Date</th><th>Hours</th><th></th></tr>';
+    foreach ($exceptions as $exception) {
+        $body .= '<tr><td>' . h($exception['exception_date']) . '</td><td>' . h(substr($exception['start_time'], 0, 5) . '–' . substr($exception['end_time'], 0, 5)) . '</td><td><form method="post" action="/availability-exception-delete" class="compact-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="doctor_id" value="' . $doctorId . '"><input type="hidden" name="exception_id" value="' . (int)$exception['id'] . '"><button>Remove</button></form></td></tr>';
+    }
+    $body .= '</table></section>';
+
+    $body .= '<section class="panel"><h2>Leave / unavailable period</h2><p>Unavailable periods block matching slots locally and in Easy!Appointments.</p><form method="post" action="/availability-leave-save" class="form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="doctor_id" value="' . $doctorId . '"><label>From (PKT)<input type="datetime-local" name="start" required></label><label>To (PKT)<input type="datetime-local" name="end" required></label><label>Reason<input name="reason" maxlength="255"></label><button>Add unavailable period</button></form><table><tr><th>Period (PKT)</th><th>Reason</th><th>Sync</th><th></th></tr>';
+    foreach ($unavailability as $period) {
+        $body .= '<tr><td>' . h(AppointmentService::utcToPakistan($period['start_at']) . ' – ' . AppointmentService::utcToPakistan($period['end_at'])) . '</td><td>' . h($period['reason']) . '</td><td>' . status_badge($period['sync_status']) . (!empty($period['sync_error']) ? '<small class="error-text">' . h($period['sync_error']) . '</small>' : '') . '</td><td><form method="post" action="/availability-leave-delete" class="compact-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="doctor_id" value="' . $doctorId . '"><input type="hidden" name="period_id" value="' . (int)$period['id'] . '"><button>Release</button></form></td></tr>';
+    }
+    $body .= '</table></section></div>';
+    layout('Doctor availability', $body);
+}
+
+function availability_save(): void {
+    $u = require_user();
+    check_csrf();
+    $doctorId = availability_target($u);
+    try {
+        $result = availability_service()->saveWorkingPlan(
+            $doctorId,
+            is_array($_POST['schedule'] ?? null) ? $_POST['schedule'] : [],
+            is_array($_POST['service_ids'] ?? null) ? $_POST['service_ids'] : [],
+            is_array($_POST['service_ea_ids'] ?? null) ? $_POST['service_ea_ids'] : [],
+            isset($_POST['ea_provider_id']) ? (int)$_POST['ea_provider_id'] : null,
+            $u['role'] === 'admin'
+        );
+        audit((int)$u['id'], 'doctor.availability.update', 'doctor', (string)$doctorId, ['sync_status' => $result['sync_status']]);
+        $_SESSION['availability_notice'] = availability_result_notice($result);
+    } catch (Throwable $error) {
+        $_SESSION['availability_notice'] = '<p class="error">' . h($error->getMessage()) . '</p>';
+    }
+    header('Location: /doctor-availability?doctor_id=' . $doctorId);
+    exit;
+}
+
+function availability_exception_save(): void {
+    $u = require_user();
+    check_csrf();
+    $doctorId = availability_target($u);
+    try {
+        $result = availability_service()->saveException($doctorId, (string)($_POST['date'] ?? ''), (string)($_POST['start'] ?? ''), (string)($_POST['end'] ?? ''));
+        audit((int)$u['id'], 'doctor.availability.exception.save', 'doctor', (string)$doctorId, ['date' => $_POST['date'] ?? null]);
+        $_SESSION['availability_notice'] = availability_result_notice($result);
+    } catch (Throwable $error) {
+        $_SESSION['availability_notice'] = '<p class="error">' . h($error->getMessage()) . '</p>';
+    }
+    header('Location: /doctor-availability?doctor_id=' . $doctorId);
+    exit;
+}
+
+function availability_exception_delete(): void {
+    $u = require_user();
+    check_csrf();
+    $doctorId = availability_target($u);
+    $result = availability_service()->deleteException($doctorId, (int)($_POST['exception_id'] ?? 0));
+    audit((int)$u['id'], 'doctor.availability.exception.delete', 'doctor', (string)$doctorId);
+    $_SESSION['availability_notice'] = availability_result_notice($result);
+    header('Location: /doctor-availability?doctor_id=' . $doctorId);
+    exit;
+}
+
+function availability_leave_save(): void {
+    $u = require_user();
+    check_csrf();
+    $doctorId = availability_target($u);
+    try {
+        $result = availability_service()->addUnavailability($doctorId, (string)($_POST['start'] ?? ''), (string)($_POST['end'] ?? ''), (string)($_POST['reason'] ?? ''));
+        audit((int)$u['id'], 'doctor.unavailability.create', 'doctor', (string)$doctorId, ['sync_status' => $result['sync_status']]);
+        $_SESSION['availability_notice'] = availability_result_notice($result);
+    } catch (Throwable $error) {
+        $_SESSION['availability_notice'] = '<p class="error">' . h($error->getMessage()) . '</p>';
+    }
+    header('Location: /doctor-availability?doctor_id=' . $doctorId);
+    exit;
+}
+
+function availability_leave_delete(): void {
+    $u = require_user();
+    check_csrf();
+    $doctorId = availability_target($u);
+    try {
+        $result = availability_service()->releaseUnavailability($doctorId, (int)($_POST['period_id'] ?? 0));
+        audit((int)$u['id'], 'doctor.unavailability.release', 'doctor', (string)$doctorId, ['sync_status' => $result['sync_status']]);
+        $_SESSION['availability_notice'] = availability_result_notice($result);
+    } catch (Throwable $error) {
+        $_SESSION['availability_notice'] = '<p class="error">' . h($error->getMessage()) . '</p>';
+    }
+    header('Location: /doctor-availability?doctor_id=' . $doctorId);
+    exit;
 }
 
 function login(): void {
@@ -706,6 +902,12 @@ elseif ($r === 'leads') leads_page();
 elseif ($r === 'dashboard') dashboard();
 elseif ($r === 'users') users_page();
 elseif ($r === 'user-new') user_new();
+elseif ($r === 'doctor-availability') doctor_availability();
+elseif ($r === 'availability-save') availability_save();
+elseif ($r === 'availability-exception-save') availability_exception_save();
+elseif ($r === 'availability-exception-delete') availability_exception_delete();
+elseif ($r === 'availability-leave-save') availability_leave_save();
+elseif ($r === 'availability-leave-delete') availability_leave_delete();
 elseif ($r === 'cases') cases();
 elseif ($r === 'case') case_detail();
 elseif ($r === 'case-update') case_update();

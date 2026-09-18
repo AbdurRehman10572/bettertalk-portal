@@ -10,6 +10,10 @@ ALTER TABLE doctor_profiles
   ADD COLUMN timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Karachi' AFTER availability_note,
   ADD COLUMN ea_provider_id INT UNSIGNED NULL AFTER timezone,
   ADD COLUMN calling_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER ea_provider_id,
+  ADD COLUMN working_plan_json JSON NULL AFTER calling_enabled,
+  ADD COLUMN availability_sync_status ENUM('not_configured','pending','synced','failed') NOT NULL DEFAULT 'not_configured' AFTER working_plan_json,
+  ADD COLUMN availability_sync_error VARCHAR(500) NULL AFTER availability_sync_status,
+  ADD COLUMN availability_synced_at DATETIME NULL AFTER availability_sync_error,
   ADD UNIQUE INDEX uq_doctor_profiles_code (doctor_code),
   ADD UNIQUE INDEX uq_doctor_profiles_ea_provider (ea_provider_id);
 
@@ -48,6 +52,36 @@ CREATE TABLE doctor_appointment_services (
   PRIMARY KEY (doctor_id, appointment_service_id),
   FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (appointment_service_id) REFERENCES appointment_services(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE doctor_schedule_exceptions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  doctor_id INT UNSIGNED NOT NULL,
+  exception_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  breaks_json JSON NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_doctor_schedule_exception (doctor_id, exception_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE doctor_unavailability_periods (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  doctor_id INT UNSIGNED NOT NULL,
+  start_at DATETIME NOT NULL,
+  end_at DATETIME NOT NULL,
+  reason VARCHAR(255) NULL,
+  status ENUM('active','released') NOT NULL DEFAULT 'active',
+  ea_unavailability_id INT UNSIGNED NULL,
+  sync_status ENUM('pending','synced','failed') NOT NULL DEFAULT 'pending',
+  sync_error VARCHAR(500) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_doctor_unavailability_ea (ea_unavailability_id),
+  INDEX idx_doctor_unavailability_window (doctor_id, start_at, end_at, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 ALTER TABLE appointments
