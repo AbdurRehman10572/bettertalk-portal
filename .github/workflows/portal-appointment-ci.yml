@@ -1,0 +1,24 @@
+name: Portal appointment CI
+
+on:
+  pull_request:
+    paths:
+      - 'portal/**'
+      - 'tests/**'
+      - '.github/workflows/portal-appointment-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'portal/**'
+      - 'tests/**'
+      - '.github/workflows/portal-appointment-ci.yml'
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check
+        run: find portal tests -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Appointment service tests
+        run: php tests/appointment_service_test.php
