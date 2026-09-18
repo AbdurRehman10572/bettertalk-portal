@@ -44,7 +44,7 @@
 | Doctor management | Pending/To verify | Confirm profile, specialties, availability, calling access |
 | Agent intake notes | Pending/To verify | Confirm structured and internal notes |
 | Agent payment management | Pending/To verify | Confirm request, proof, status, reference |
-| Agent doctor scheduling | In development / local source | Foundation committed locally; PHP runtime, database, Easy!Appointments, and production tests remain pending |
+| Agent doctor scheduling | Source foundation / CI passed | PR #1 passed PHP CI; database, Easy!Appointments, role, concurrency, and production tests remain pending |
 | Doctor portal access | Pending/To verify | Confirm assigned appointments only |
 | Doctor direct calling | Pending/To verify | Confirm direct call without agent bridging |
 | Call IDs/history | Pending/To verify | Confirm linkage to client and appointment |
@@ -82,9 +82,10 @@
 - Located the `AbdurRehman10572/bettertalk-portal` source repository and created local branch `feat/appointment-foundation-20260918`.
 - Local implementation commit `45bf6ed` adds an additive appointment migration, Easy!Appointments API client, payment-gated availability, permitted 15/30/45/60-minute services, atomic 15-minute holds, overlap checks, hold-to-appointment conversion, sync failure/retry tracking, portal booking routes, and focused tests/CI.
 - Static PHP parsing passed for the portal entry point, both new appointment classes, configuration template, and unit-test file. `git diff --check` also passed.
-- Native PHP lint/unit execution is **Blocked** in the current runtime because PHP CLI is unavailable. The added GitHub Actions workflow is intended to run those checks after the branch is published.
-- Remote branch publication is **Blocked pending explicit user approval**. No GitHub branch/PR, production database, HostBreak files, or Easy!Appointments installation was changed.
-- Database migration, API mapping, concurrent-agent behavior, expiry, role restrictions, and end-to-end production behavior remain **Pending** until CI and a safe staging/production deployment are available.
+- With explicit user approval, feature branch `feat/appointment-foundation-20260918` was published and pull request #1 was opened at `https://github.com/AbdurRehman10572/bettertalk-portal/pull/1`.
+- GitHub Actions run `35345948594` completed successfully: native PHP syntax checks and `tests/appointment_service_test.php` passed.
+- The PR remains open and unmerged. No production database, HostBreak files, or Easy!Appointments installation was changed.
+- Database migration, API mapping, concurrent-agent behavior, expiry, role restrictions, and end-to-end production behavior remain **Pending** until a safe staging/production deployment is available.
 
 ## 4. Next Status Update Method
 
