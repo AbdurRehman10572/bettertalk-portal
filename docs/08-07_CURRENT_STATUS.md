@@ -50,7 +50,7 @@
 | Call IDs/history | Pending/To verify | Confirm linkage to client and appointment |
 | Returning-client lookup | Pending/To verify | Confirm phone/ID/reference search |
 | Audit logs | Pending/To verify | Confirm actor/time/before-after values |
-| Easy!Appointments deployment | Pending | Approved as scheduling engine; hosting/configuration not yet installed or tested |
+| Easy!Appointments deployment | Installed files / setup pending | Official 1.6.0 archive hash-verified and extracted to `/public_html/portal.bettertalk.pk/scheduler`; public route now reaches EasyAppointments, which correctly reports that `config.php` is missing. Dedicated database/user exist; complete configuration and installer next. |
 | 15-minute temporary slot holds | Production schema deployed / behavior pending | `appointment_holds` exists in production; concurrent-agent, expiry, conversion, and conflict tests remain pending |
 | Customer login and appointment page | Pending | Approved route and access rules; not yet implemented/tested |
 | Case/Agent Call/Doctor Call identifier model | Production schema deployed / linkage tests pending | Migration completed successfully; existing appointment, call, doctor, and patient backfills have zero missing required values. End-to-end linked-call tests remain pending |
@@ -105,6 +105,15 @@
 - Read-only validation passed: all 8 expected new tables exist; `BT-15`, `BT-30`, `BT-45`, and `BT-60` are active; the existing appointment has no missing Appointment ID/end time; both existing calls have call codes/kinds; the existing doctor has a Doctor ID; and both patients with normalized phones have normalized login mobiles.
 - No Easy!Appointments database/user/application has been created yet. Softaculous does not offer Easy!Appointments on this host. Official stable release `1.6.0` was downloaded from the upstream GitHub release and matched the published SHA-256 `299f8da75583ea185992ece4ac0b10e98f673825edbf75116446d99001911e60`.
 - Next action requires action-time approval to create a dedicated Easy!Appointments database/user with limited privileges and install the verified package at `schedule.bettertalk.pk`.
+
+## 3E. Easy!Appointments Installation Milestone — 18 September 2026
+
+- The hosting plan had reached its subdomain limit, so the approved installation target changed from `schedule.bettertalk.pk` to `https://portal.bettertalk.pk/scheduler`.
+- Dedicated database `catalogs_ea` and user `catalogs_ea` were created; the user has full privileges on that dedicated database only. Do not expose the password in documentation, source, logs, or chat.
+- The official EasyAppointments `1.6.0` archive was downloaded again on the server only after verification of its published SHA-256 (`299f8da75583ea185992ece4ac0b10e98f673825edbf75116446d99001911e60`), then extracted into `/home/catalogs/public_html/portal.bettertalk.pk/scheduler`. `storage` permissions were set writable for the hosting account.
+- The existing portal front controller intercepted the scheduler route despite the physical folder. A reversible portal backup was made, then a narrow `/scheduler` hand-off was added before the portal bootstrap. This preserves existing portal routes while allowing EasyAppointments to respond.
+- Live verification at `/scheduler/index.php` now reaches EasyAppointments and reports only: root `config.php` is missing. This is the expected pre-setup state.
+- **Pause milestone:** do not repeat database creation, archive download, extraction, migration, or route work. Resume by copying `scheduler/config-sample.php` to `scheduler/config.php`, enter the dedicated database settings, run the EasyAppointments setup, create/configure the administrator and API access, then test Portal ↔ scheduling synchronization.
 
 ## 4. Next Status Update Method
 
