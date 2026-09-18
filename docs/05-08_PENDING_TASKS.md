@@ -16,7 +16,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 
 | Priority | Task | Acceptance Criterion / Next Action |
 |---|---|---|
-| P0 | Publish and validate source branch | Local implementation commit `45bf6ed` exists; obtain explicit approval to push the branch, open a PR, and run PHP CI |
+| P0 | Review appointment pull request | PR #1 is open and PHP CI run `35345948594` passed; review before merge and do not deploy directly from the feature branch |
 | P0 | Confirm deployment access | Confirm production database migration method and working HostBreak cPanel/SFTP or equivalent access |
 | P0 | Deploy Easy!Appointments | Install a compatible open-source release on HostBreak, secure it, configure its database, and verify API access without exposing its raw staff UI to customers |
 | P0 | Implement identifier migration | Client ID → Case ID → multiple Agent Call IDs → Payment → Doctor ID + Appointment ID → multiple Doctor Call IDs; preserve existing records and audit history |
@@ -101,9 +101,9 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 
 ## Appointment Implementation Blockers / Required Access
 
-- Portal repository was located and the appointment foundation was committed locally on `feat/appointment-foundation-20260918`.
-- Remote publication is blocked until the user explicitly approves pushing the branch/opening a PR. Do not bypass this approval boundary.
-- Native PHP lint/unit execution is unavailable locally; publish the branch so the added GitHub Actions CI can run PHP syntax and appointment service tests.
+- Portal repository was located and the appointment foundation was published on `feat/appointment-foundation-20260918` with explicit user approval.
+- Pull request #1 is open; native PHP syntax and appointment service tests passed in GitHub Actions run `35345948594`.
+- PR review/merge and production deployment are separate actions and remain pending.
 - Easy!Appointments deployment requires HostBreak cPanel/File Manager or SFTP/SSH access and permission to create/configure its database and installation path/subdomain.
 - OTP password recovery requires an SMS provider/API configuration. Automated appointment reminders are not required.
 
