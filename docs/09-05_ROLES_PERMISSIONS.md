@@ -1,5 +1,7 @@
 # Better Talk — Roles and Permissions
 
+**Last approved update:** 18 September 2026
+
 ## 1. Role Summary
 
 | Area | Admin | Agent / Coordinator | Doctor |
@@ -15,11 +17,13 @@
 | Doctor calls | Oversight | View status | Initiate assigned calls |
 | Reports | Full | Own/team if allowed | Own activity only |
 | Audit log | Full | Own actions | Own actions |
+| Customer requests | Full approve/reject | Review/approve/reject | Own appointment awareness only |
 
 ## 2. Admin
 
 - Has full visibility across business operations.
 - Manages users, roles, doctor details, categories, availability, and permissions.
+- Creates permanent Doctor IDs, controls customer-facing pseudonyms, and assigns each doctor's permitted 15/30/45/60-minute durations.
 - Assigns/reassigns leads and appointments.
 - Reviews calls, payments, exceptions, reports, and audit history.
 - Can correct data through controlled actions with mandatory reasons.
@@ -31,7 +35,9 @@
 - Adds intake information and operational notes.
 - Sends/records payment information and confirms payment according to permission.
 - Selects doctor and schedules the final call.
+- May create a 15-minute temporary slot hold while completing a booking.
 - May reschedule/cancel with reason.
+- Reviews and approves/rejects customer reschedule/cancellation requests.
 - Does not participate in the final doctor-client call.
 - Cannot manage user roles, view unrelated confidential session notes, or perform unrestricted financial overrides.
 
@@ -41,6 +47,7 @@
 - Receives the minimum necessary intake details.
 - Initiates the scheduled direct call from their user access.
 - Records call outcome and authorized session notes.
+- May maintain own recurring availability, breaks, exceptions, and leave; Admin retains override control.
 - Cannot see unrelated clients, other doctors' work, full financial data, or system administration.
 
 ## 5. Permission Controls
@@ -60,7 +67,15 @@
 | Contacted → Initial Call Completed | Yes | Yes | No |
 | Payment status update | Yes | Yes, permitted actions | No |
 | Appointment schedule/change | Yes | Yes | Own confirmation/request |
+| Temporary slot hold | Yes | Yes | No |
+| Customer cancellation/reschedule approval | Yes | Yes | No |
 | Session started/completed/no answer | Yes | No | Yes, own appointment |
 | Refund/financial override | Yes, authorized | Restricted/No | No |
 | Close/archive record | Yes | Limited with reason | No |
 
+## 7. Customer Access (Not a Staff Role)
+
+- Customer login at `bettertalk.pk/customer-login` uses normalized mobile number plus password; password recovery uses OTP.
+- Customer can view only their own upcoming/past appointments and permitted payment/status information.
+- Customer sees the doctor's approved pseudonym and public profile information, without picture, private contact details, Call IDs, or internal/clinical notes.
+- Customer may submit cancellation/reschedule requests but cannot approve them, alter appointments directly, self-book, or access staff functions.
