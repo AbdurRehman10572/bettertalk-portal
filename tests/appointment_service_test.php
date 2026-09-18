@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../portal/app/AppointmentService.php';
+require_once __DIR__ . '/../portal/app/AvailabilityService.php';
 
 function expect_true(bool $condition, string $message): void
 {
@@ -57,5 +58,48 @@ $basicConfigured = new EasyAppointmentsClient([
     'password' => 'secret',
 ]);
 expect_true($basicConfigured->isConfigured(), 'Basic-auth configuration must be accepted.');
+
+$plan = AvailabilityService::normalizeWorkingPlan([
+    'monday' => [
+        'enabled' => '1',
+        'start' => '09:00',
+        'end' => '18:00',
+        'break_start' => ['13:00', '16:00'],
+        'break_end' => ['14:00', '16:15'],
+    ],
+]);
+expect_true($plan['monday']['start'] === '09:00', 'Working day start must be retained.');
+expect_true(count($plan['monday']['breaks']) === 2, 'Multiple breaks must be retained.');
+expect_true($plan['tuesday'] === null, 'Disabled days must be unavailable.');
+
+$invalidBreakFailed = false;
+try {
+    AvailabilityService::normalizeWorkingPlan([
+        'monday' => [
+            'enabled' => '1',
+            'start' => '09:00',
+            'end' => '17:00',
+            'break_start' => ['08:30'],
+            'break_end' => ['09:15'],
+        ],
+    ]);
+} catch (InvalidArgumentException $error) {
+    $invalidBreakFailed = true;
+}
+expect_true($invalidBreakFailed, 'Breaks outside working hours must be rejected.');
+
+$exception = AvailabilityService::normalizeException('2026-09-25', '12:00', '16:00');
+expect_true($exception['date'] === '2026-09-25', 'Date exceptions must retain the selected date.');
+
+$leave = AvailabilityService::normalizeUnavailability('2026-09-25T12:00', '2026-09-25T16:00');
+expect_true($leave['utc_start']->format('Y-m-d H:i:s') === '2026-09-25 07:00:00', 'PKT leave must be stored in UTC.');
+
+$invalidLeaveFailed = false;
+try {
+    AvailabilityService::normalizeUnavailability('2026-09-25T16:00', '2026-09-25T12:00');
+} catch (InvalidArgumentException $error) {
+    $invalidLeaveFailed = true;
+}
+expect_true($invalidLeaveFailed, 'Leave with an invalid range must be rejected.');
 
 echo "appointment_service_test: OK\n";

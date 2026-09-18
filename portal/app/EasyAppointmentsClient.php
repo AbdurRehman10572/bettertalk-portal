@@ -65,6 +65,30 @@ final class EasyAppointmentsClient
         return $result;
     }
 
+    public function getProvider(int $providerId): array
+    {
+        $result = $this->request('GET', 'providers/' . $providerId);
+        if (!is_array($result) || (int)($result['id'] ?? 0) !== $providerId) {
+            throw new RuntimeException('Scheduling engine returned invalid provider data.');
+        }
+        return $result;
+    }
+
+    public function createUnavailability(array $unavailability): int
+    {
+        $result = $this->request('POST', 'unavailabilities', [], $unavailability);
+        $id = (int)($result['id'] ?? 0);
+        if ($id < 1) {
+            throw new RuntimeException('Scheduling engine did not return an unavailability ID.');
+        }
+        return $id;
+    }
+
+    public function deleteUnavailability(int $unavailabilityId): void
+    {
+        $this->request('DELETE', 'unavailabilities/' . $unavailabilityId);
+    }
+
     private function request(string $method, string $resource, array $query = [], ?array $payload = null): array
     {
         if (!$this->isConfigured()) {

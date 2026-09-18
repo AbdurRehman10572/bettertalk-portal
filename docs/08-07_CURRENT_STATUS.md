@@ -41,19 +41,19 @@
 | Website lead sync | Partially deployed / To verify | Backend exists; fix live form, submit one synthetic lead, and trace its portal/database record |
 | Lead status changes | Pending/To verify | Confirm role-based dropdown and audit history |
 | User management | Pending/To verify | Confirm admin can add/edit/deactivate roles |
-| Doctor management | Pending/To verify | Confirm profile, specialties, availability, calling access |
+| Doctor management | Source implementation / CI passed | PR #2 adds Doctor ID/pseudonym creation plus Doctor/Admin availability controls; database, Easy!Appointments, role, and production tests remain pending |
 | Agent intake notes | Pending/To verify | Confirm structured and internal notes |
 | Agent payment management | Pending/To verify | Confirm request, proof, status, reference |
-| Agent doctor scheduling | Source foundation / CI passed | PR #1 passed PHP CI; database, Easy!Appointments, role, concurrency, and production tests remain pending |
+| Agent doctor scheduling | Merged source foundation / CI passed | PR #1 merged to `main` as `ba05d6a`; database, Easy!Appointments, role, concurrency, and production tests remain pending |
 | Doctor portal access | Pending/To verify | Confirm assigned appointments only |
 | Doctor direct calling | Pending/To verify | Confirm direct call without agent bridging |
 | Call IDs/history | Pending/To verify | Confirm linkage to client and appointment |
 | Returning-client lookup | Pending/To verify | Confirm phone/ID/reference search |
 | Audit logs | Pending/To verify | Confirm actor/time/before-after values |
 | Easy!Appointments deployment | Pending | Approved as scheduling engine; hosting/configuration not yet installed or tested |
-| 15-minute temporary slot holds | Pending | Approved; concurrency/expiry implementation not yet tested |
+| 15-minute temporary slot holds | Merged source foundation / CI passed | Atomic hold code is on `main`; database, concurrent-agent, expiry, and production tests remain pending |
 | Customer login and appointment page | Pending | Approved route and access rules; not yet implemented/tested |
-| Case/Agent Call/Doctor Call identifier model | Approved / Pending implementation | Documentation updated; database/API migration not yet implemented/tested |
+| Case/Agent Call/Doctor Call identifier model | Merged source migration / Pending deployment | Additive migration is on `main`; database migration and linked-call production tests remain pending |
 
 ## 3. Approved Requirements Already Captured
 
@@ -84,8 +84,16 @@
 - Static PHP parsing passed for the portal entry point, both new appointment classes, configuration template, and unit-test file. `git diff --check` also passed.
 - With explicit user approval, feature branch `feat/appointment-foundation-20260918` was published and pull request #1 was opened at `https://github.com/AbdurRehman10572/bettertalk-portal/pull/1`.
 - GitHub Actions run `35345948594` completed successfully: native PHP syntax checks and `tests/appointment_service_test.php` passed.
-- The PR remains open and unmerged. No production database, HostBreak files, or Easy!Appointments installation was changed.
+- Pull request #1 was merged to `main` on 18 September 2026 as commit `ba05d6a` after successful CI. No production database, HostBreak files, or Easy!Appointments installation was changed.
 - Database migration, API mapping, concurrent-agent behavior, expiry, role restrictions, and end-to-end production behavior remain **Pending** until a safe staging/production deployment is available.
+
+## 3C. Doctor Availability Implementation — 18 September 2026
+
+- Pull request #2 adds the Admin/Doctor availability workspace, recurring weekly plans, two break windows per day, date exceptions, leave/unavailability periods, Admin provider/service mapping, and permitted 15/30/45/60-minute durations.
+- Availability changes save to the Better Talk Portal and synchronize provider working plans/unavailability records to Easy!Appointments. Failed or incomplete synchronization is visible and blocks new scheduling for the affected doctor; locally active leave also participates in conflict detection.
+- New doctors receive a permanent Doctor ID and customer-facing pseudonym fields. Doctor self-service is restricted to the logged-in doctor, while Admin may select and override any doctor; changes use CSRF protection and audit events.
+- GitHub Actions run `35346914933` passed native PHP syntax checks and the expanded appointment/availability tests for working plans, multiple breaks, invalid ranges, date exceptions, and Pakistan-to-UTC leave conversion.
+- PR #2 remains open and unmerged. No production database migration, Easy!Appointments installation, HostBreak file, or live portal behavior was changed or tested.
 
 ## 4. Next Status Update Method
 
