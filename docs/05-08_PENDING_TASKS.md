@@ -16,8 +16,8 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 
 | Priority | Task | Acceptance Criterion / Next Action |
 |---|---|---|
-| P0 | Back up and migrate appointment database | PRs #1 and #2 are merged; confirm a recoverable production database backup, then run the appointment migration once and validate existing records |
-| P0 | Confirm deployment access | Confirm production database migration method and working HostBreak cPanel/SFTP or equivalent access |
+| P0 | Migrate appointment database | Complete: backup `backup-9.18.2026_18-05-11_catalogs.tar.gz` is verified; migration imported once; 20 queries succeeded; 8/8 tables, four services, and existing-row backfills validated |
+| P0 | Confirm deployment access | Complete: authenticated HostBreak, cPanel, Backup, and phpMyAdmin access worked on 18 September 2026; re-authenticate in the next session if the cPanel session has expired |
 | P0 | Deploy Easy!Appointments | Install a compatible open-source release on HostBreak, secure it, configure its database, and verify API access without exposing its raw staff UI to customers |
 | P0 | Deploy and verify identifier migration | Source migration is merged; back up the database, run it once, verify existing records, then test Client ID → Case ID → Agent Calls → Payment → Doctor/Appointment → Doctor Calls |
 | P0 | Deploy and verify availability/durations | Merged source implements Doctor self-service, Admin override, recurring hours, breaks, exceptions/leave, provider/service mapping, and 15/30/45/60-minute durations; migrate, configure, and role-test |
@@ -26,14 +26,24 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 | P0 | Build customer appointment access | `bettertalk.pk/customer-login`; normalized mobile + password; OTP recovery; appointment/history/payment view; pseudonym/no picture; controlled requests |
 | P0 | End-to-end appointment tests | Payment gate → doctor allocation → hold → schedule → doctor call → completion; concurrent agents; expiry; reschedule/cancellation approval; role-negative tests |
 
-### Current Production-Access Blocker
+### Current Production Deployment Checkpoint
+
+- HostBreak/cPanel/phpMyAdmin access worked on 18 September 2026, and `catalogs_btp` was confirmed as the Better Talk production database.
+- A cPanel server-side full-account backup completed and is listed as `backup-9.18.2026_18-05-11_catalogs.tar.gz` (18 September 2026 18:05:11).
+- Browser-initiated SQL downloads failed with `Fetch domain is not enabled`; no local database backup was created. The server-side full-account backup is the verified recovery point.
+- The migration is complete and must **not** be rerun. phpMyAdmin reported 20 successful queries; validation found all 8 expected tables and zero missing required backfill values in existing appointments, calls, doctors, or patients.
+- The four active services are `BT-15`, `BT-30`, `BT-45`, and `BT-60`.
+- Softaculous does not include Easy!Appointments. Official stable release `1.6.0` is prepared and its SHA-256 matches the upstream release.
+- Resume with the approval-gated step: create a dedicated least-privilege Easy!Appointments database/user, install at `schedule.bettertalk.pk`, complete its setup wizard, secure raw public access, then configure and test Portal API synchronization.
+
+### Historical Production-Access Blocker
 
 - A fresh Cloud Browser session opened the authenticated HostBreak account and confirmed the active hosting service.
 - HostBreak one-click cPanel redirected to `cp8.mywebsitebox.com:2083` but returned `502 Bad Gateway — Connection refused`.
 - The embedded HostBreak file-manager route was blocked by Cloud Browser URL policy, and later tab operations again timed out.
 - The live contact form's DOM shows enabled fields and the correct `https://portal.bettertalk.pk/lead-intake` action, but focus/typing could not be conclusively exercised before the browser failed.
 - The prior blank deployment was traced to an incompatible server-hydration bundle. A corrected HostBreak-only SPA artifact is now generated from main commit `52e759d`; main CI run `35275076542` passed and verified `createRoot`, `/lead-intake`, static assets, and Apache route fallback.
-- Production has not been changed. Resume P0 only when reliable HostBreak file access or a secure GitHub-to-HostBreak deployment route is available. Do not move to P1 while the contact-to-lead acceptance test remains incomplete.
+- At that time production had not been changed. HostBreak/cPanel/phpMyAdmin access was subsequently restored on 18 September; the contact-to-lead acceptance test still remains incomplete.
 - Latest recovery attempt also failed before tab creation; this is an environment/hosting-access blocker, not a missing business requirement.
 - Option 1 (cPanel/File Manager) was selected, but the fresh cPanel attempt still timed out before access; HostBreak support must restore the cPanel endpoint or provide a working File Manager URL.
 - Do not mark production work complete from source inspection or a successful build alone; verify the live URL and record evidence.
@@ -103,7 +113,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 
 - Appointment foundation pull request #1 passed PHP CI and was merged to `main` as commit `ba05d6a` on 18 September 2026.
 - Doctor availability pull request #2 passed native PHP syntax and expanded appointment/availability tests in GitHub Actions run `35346914933`, then merged to `main` as commit `a45d795`.
-- Production database backup/migration and Easy!Appointments deployment remain pending and require reliable HostBreak access.
+- Production backup and appointment migration are complete and validated. Easy!Appointments database/user creation, installation, configuration, and integration tests remain pending at the checkpoint above.
 - Easy!Appointments deployment requires HostBreak cPanel/File Manager or SFTP/SSH access and permission to create/configure its database and installation path/subdomain.
 - OTP password recovery requires an SMS provider/API configuration. Automated appointment reminders are not required.
 
