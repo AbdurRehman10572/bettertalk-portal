@@ -121,7 +121,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 - Production backup and appointment migration are complete and validated. Easy!Appointments database/user creation, archive verification, extraction, and scheduler routing are also complete. Server-side `config.php`, setup wizard, administrator/API configuration, mappings, and integration tests remain pending.
 - Completing Easy!Appointments requires authenticated HostBreak cPanel/File Manager or SFTP/SSH access to create `scheduler/config.php` and finish the setup wizard. Required non-secret values are now fixed: `BASE_URL=https://portal.bettertalk.pk/scheduler`, `DB_HOST=localhost` unless HostBreak shows otherwise, `DB_NAME=catalogs_ea`, `DB_USERNAME=catalogs_ea`, `LANGUAGE=english`, `DEBUG_MODE=false`. Use the existing database-user password only on the server; never commit or document it. Do not recreate the existing database/user or reinstall the archive.
 - Customer-access source merged in the public website repository as commit `970ef183`; HostBreak artifact CI passed. Live deployment/testing remains pending.
-- Agent/Admin customer request review queue is implemented in portal source and pending CI/merge/live verification.
+- Agent/Admin customer request review queue passed CI and merged as commit `9631eb21`; live verification remains pending.
 - OTP password recovery requires an SMS provider/API configuration. Automated appointment reminders are not required.
 
 ## Recommended Work Instruction
