@@ -159,6 +159,12 @@ Production acceptance sequence after setup: scheduler login works → authentica
 - Invalid or stale mappings are rejected before Better Talk writes the mapping locally.
 - This remains source-only until deployed and tested against the live scheduler.
 
+## 3K. Scheduler Mapping Validation Tests — 19 September 2026
+
+- Added focused automated tests for valid same-duration mappings, rejected mismatched durations, and rejected non-positive durations.
+- These tests protect the 15/30/45/60-minute Better Talk service mapping rules from regression.
+- Production API/provider/service verification is still required after live scheduler setup.
+
 ## 4. Next Status Update Method
 
 After each implementation/testing session, move functions into `Complete`, `Failed`, `Blocked`, or `Pending`, and record test evidence such as test lead ID, test role, timestamp, and observed result. Do not store live client-sensitive data in this document.
