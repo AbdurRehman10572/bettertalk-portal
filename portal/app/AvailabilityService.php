@@ -127,6 +127,9 @@ final class AvailabilityService
     ): array {
         $this->doctor($doctorId);
         $plan = self::normalizeWorkingPlan($schedule);
+        if ($adminMayConfigure) {
+            $this->validateExternalMappings($serviceIds, $serviceEaIds, $providerId);
+        }
         $this->pdo->beginTransaction();
         try {
             if ($adminMayConfigure) {
@@ -295,6 +298,68 @@ final class AvailabilityService
                 ->execute([$status, $message, $doctorId]);
             $this->logSync('doctor', (string)$doctorId, 'availability_update', 'failed', $message);
             return ['sync_status' => $status, 'sync_error' => $message];
+        }
+    }
+
+    private function validateExternalMappings(array $serviceIds, array $serviceEaIds, ?int $providerId): void
+    {
+        if (!$this->easyAppointments->isConfigured()) {
+            throw new RuntimeException('Easy!Appointments API must be configured before saving provider/service mappings.');
+        }
+        $providerId = (int)($providerId ?? 0);
+        if ($providerId < 1) {
+            throw new RuntimeException('Select a valid Easy!Appointments provider.');
+        }
+
+        $providers = [];
+        foreach ($this->easyAppointments->providers() as $provider) {
+            $id = (int)($provider['id'] ?? 0);
+            if ($id > 0) {
+                $providers[$id] = true;
+            }
+        }
+        if (!isset($providers[$providerId])) {
+            throw new RuntimeException('Selected Easy!Appointments provider no longer exists.');
+        }
+
+        $externalServices = [];
+        foreach ($this->easyAppointments->services() as $service) {
+            $id = (int)($service['id'] ?? 0);
+            if ($id > 0) {
+                $externalServices[$id] = $service;
+            }
+        }
+
+        $localRows = $this->pdo->query('SELECT id,duration_minutes FROM appointment_services WHERE active=1')->fetchAll();
+        $localServices = [];
+        foreach ($localRows as $row) {
+            $localServices[(int)$row['id']] = (int)$row['duration_minutes'];
+        }
+
+        $selected = array_values(array_intersect(array_map('intval', $serviceIds), array_keys($localServices)));
+        if (!$selected) {
+            throw new RuntimeException('Select at least one permitted duration for this doctor.');
+        }
+
+        foreach ($localServices as $localId => $localDuration) {
+            $externalId = (int)($serviceEaIds[(string)$localId] ?? $serviceEaIds[$localId] ?? 0);
+            if ($externalId < 1) {
+                if (in_array($localId, $selected, true)) {
+                    throw new RuntimeException($localDuration . '-minute duration needs an Easy!Appointments service mapping.');
+                }
+                continue;
+            }
+            if (!isset($externalServices[$externalId])) {
+                throw new RuntimeException('Selected Easy!Appointments service #' . $externalId . ' no longer exists.');
+            }
+            $externalDuration = isset($externalServices[$externalId]['duration'])
+                ? (int)$externalServices[$externalId]['duration']
+                : 0;
+            if ($externalDuration > 0 && $externalDuration !== $localDuration) {
+                throw new RuntimeException(
+                    $localDuration . '-minute Better Talk duration cannot map to a ' . $externalDuration . '-minute Easy!Appointments service.'
+                );
+            }
         }
     }
 

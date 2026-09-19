@@ -151,6 +151,14 @@ Production acceptance sequence after setup: scheduler login works → authentica
 - If the scheduler API is not configured or unreachable, the Admin screen shows the mapping-discovery error instead of silently accepting guessed IDs.
 - This remains source-only until deployed and tested against the live scheduler.
 
+## 3J. Scheduler Mapping Validation — 19 September 2026
+
+- Added server-side validation before Admin provider/service mappings are saved.
+- The selected Easy!Appointments provider must still exist in the live scheduler API.
+- Every selected Better Talk duration must have a valid scheduler service mapping, and where the scheduler exposes a duration value it must match the Better Talk duration (15/30/45/60).
+- Invalid or stale mappings are rejected before Better Talk writes the mapping locally.
+- This remains source-only until deployed and tested against the live scheduler.
+
 ## 4. Next Status Update Method
 
 After each implementation/testing session, move functions into `Complete`, `Failed`, `Blocked`, or `Pending`, and record test evidence such as test lead ID, test role, timestamp, and observed result. Do not store live client-sensitive data in this document.
