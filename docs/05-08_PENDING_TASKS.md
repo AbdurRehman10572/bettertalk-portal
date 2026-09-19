@@ -116,7 +116,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 - Appointment foundation pull request #1 passed PHP CI and was merged to `main` as commit `ba05d6a` on 18 September 2026.
 - Doctor availability pull request #2 passed native PHP syntax and expanded appointment/availability tests in GitHub Actions run `35346914933`, then merged to `main` as commit `a45d795`.
 - Production backup and appointment migration are complete and validated. Easy!Appointments database/user creation, archive verification, extraction, and scheduler routing are also complete. Server-side `config.php`, setup wizard, administrator/API configuration, mappings, and integration tests remain pending.
-- Completing Easy!Appointments requires authenticated HostBreak cPanel/File Manager or SFTP/SSH access to create `scheduler/config.php` and finish the setup wizard. Do not recreate the existing database/user or reinstall the archive.
+- Completing Easy!Appointments requires authenticated HostBreak cPanel/File Manager or SFTP/SSH access to create `scheduler/config.php` and finish the setup wizard. Required non-secret values are now fixed: `BASE_URL=https://portal.bettertalk.pk/scheduler`, `DB_HOST=localhost` unless HostBreak shows otherwise, `DB_NAME=catalogs_ea`, `DB_USERNAME=catalogs_ea`, `LANGUAGE=english`, `DEBUG_MODE=false`. Use the existing database-user password only on the server; never commit or document it. Do not recreate the existing database/user or reinstall the archive.
 - OTP password recovery requires an SMS provider/API configuration. Automated appointment reminders are not required.
 
 ## Recommended Work Instruction
