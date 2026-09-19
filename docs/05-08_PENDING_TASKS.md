@@ -39,6 +39,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 - Source alignment on 19 September 2026: `portal/app/config.example.php` now points to `https://portal.bettertalk.pk/scheduler`; this is source preparation only and does not prove live scheduler configuration.
 - Scheduler health diagnostic is implemented in source as Admin-only `/scheduler-health`; deploy it with the portal after live scheduler setup, then require a successful authenticated API check before provider/service mapping.
 - Provider/service discovery is implemented in source: Admin Doctor Availability can load Easy!Appointments providers/services from the API and select mappings without manually typing external IDs. Production verification remains pending.
+- Mapping validation is implemented in source: provider IDs must exist and selected scheduler service durations must match Better Talk 15/30/45/60-minute durations before mappings are saved. Production verification remains pending.
 
 ### Historical Production-Access Blocker
 
