@@ -165,6 +165,17 @@ Production acceptance sequence after setup: scheduler login works → authentica
 - These tests protect the 15/30/45/60-minute Better Talk service mapping rules from regression.
 - Production API/provider/service verification is still required after live scheduler setup.
 
+## 3L. Customer Access V1 Source — 19 September 2026
+
+- Public website repository now includes `/customer-login`.
+- Customer login uses same-domain server-side sessions and the existing customer password hash field.
+- Customer view is limited to own appointments/history, payment status, Client ID, and approved doctor pseudonym/public profile fields.
+- Internal notes, Call IDs, real/private doctor identity, and staff-only functions are not returned.
+- Customer reschedule/cancellation submissions create `appointment_change_requests`.
+- Agent/Admin review queue is implemented in portal source with approve/reject audit events.
+- Public-site HostBreak CI passed and the customer-access change merged as commit `970ef183`.
+- OTP recovery and live deployment/testing remain pending.
+
 ## 4. Next Status Update Method
 
 After each implementation/testing session, move functions into `Complete`, `Failed`, `Blocked`, or `Pending`, and record test evidence such as test lead ID, test role, timestamp, and observed result. Do not store live client-sensitive data in this document.
