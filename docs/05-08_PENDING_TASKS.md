@@ -18,7 +18,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 |---|---|---|
 | P0 | Migrate appointment database | Complete: backup `backup-9.18.2026_18-05-11_catalogs.tar.gz` is verified; migration imported once; 20 queries succeeded; 8/8 tables, four services, and existing-row backfills validated |
 | P0 | Confirm deployment access | Complete: authenticated HostBreak, cPanel, Backup, and phpMyAdmin access worked on 18 September 2026; re-authenticate in the next session if the cPanel session has expired |
-| P0 | Deploy Easy!Appointments | Install a compatible open-source release on HostBreak, secure it, configure its database, and verify API access without exposing its raw staff UI to customers |
+| P0 | Complete Easy!Appointments setup | Files and dedicated DB/user already exist at `portal.bettertalk.pk/scheduler`; create server-side `config.php`, run setup, create/configure administrator/API access, restrict raw UI, and verify Portal API access |
 | P0 | Deploy and verify identifier migration | Source migration is merged; back up the database, run it once, verify existing records, then test Client ID → Case ID → Agent Calls → Payment → Doctor/Appointment → Doctor Calls |
 | P0 | Deploy and verify availability/durations | Merged source implements Doctor self-service, Admin override, recurring hours, breaks, exceptions/leave, provider/service mapping, and 15/30/45/60-minute durations; migrate, configure, and role-test |
 | P0 | Deploy and verify 15-minute slot holds | Source is merged; test atomic first-wins holds, interval blocking, visible expiry, schedule conversion, automatic release, and conflict response against the migrated database |
@@ -35,7 +35,8 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 - The four active services are `BT-15`, `BT-30`, `BT-45`, and `BT-60`.
 - Softaculous does not include Easy!Appointments. Official stable release `1.6.0` has been server-downloaded and SHA-256 verified before extraction.
 - **Paused installation milestone:** `catalogs_ea` plus its dedicated DB user are created; the archive is extracted at `/home/catalogs/public_html/portal.bettertalk.pk/scheduler`; the public `/scheduler` route reaches EasyAppointments and reports the expected missing `config.php` precondition. A reversible portal front-controller hand-off was added solely for `/scheduler`.
-- Resume with: copy `config-sample.php` to `config.php`, set the dedicated database connection without recording its password in source/docs, run setup, configure administrator/API access, restrict the raw scheduler UI appropriately, and test Portal API synchronization.
+- Resume with: copy `config-sample.php` to `config.php`, set `BASE_URL` to `https://portal.bettertalk.pk/scheduler`, set the dedicated database connection without recording its password in source/docs, run setup, configure administrator/API access, restrict the raw scheduler UI appropriately, and test Portal API synchronization.
+- Source alignment on 19 September 2026: `portal/app/config.example.php` now points to `https://portal.bettertalk.pk/scheduler`; this is source preparation only and does not prove live scheduler configuration.
 
 ### Historical Production-Access Blocker
 
@@ -114,8 +115,8 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 
 - Appointment foundation pull request #1 passed PHP CI and was merged to `main` as commit `ba05d6a` on 18 September 2026.
 - Doctor availability pull request #2 passed native PHP syntax and expanded appointment/availability tests in GitHub Actions run `35346914933`, then merged to `main` as commit `a45d795`.
-- Production backup and appointment migration are complete and validated. Easy!Appointments database/user creation, installation, configuration, and integration tests remain pending at the checkpoint above.
-- Easy!Appointments deployment requires HostBreak cPanel/File Manager or SFTP/SSH access and permission to create/configure its database and installation path/subdomain.
+- Production backup and appointment migration are complete and validated. Easy!Appointments database/user creation, archive verification, extraction, and scheduler routing are also complete. Server-side `config.php`, setup wizard, administrator/API configuration, mappings, and integration tests remain pending.
+- Completing Easy!Appointments requires authenticated HostBreak cPanel/File Manager or SFTP/SSH access to create `scheduler/config.php` and finish the setup wizard. Do not recreate the existing database/user or reinstall the archive.
 - OTP password recovery requires an SMS provider/API configuration. Automated appointment reminders are not required.
 
 ## Recommended Work Instruction
