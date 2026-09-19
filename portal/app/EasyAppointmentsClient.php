@@ -23,6 +23,16 @@ final class EasyAppointmentsClient
         return $this->baseUrl !== '' && ($this->apiKey !== '' || ($this->username !== '' && $this->password !== ''));
     }
 
+    public function healthCheck(): array
+    {
+        $result = $this->request('GET', 'services', ['page' => 1, 'length' => 1]);
+        return [
+            'configured' => true,
+            'api_authenticated' => true,
+            'sample_service_count' => count($result),
+        ];
+    }
+
     public function availabilities(int $providerId, int $serviceId, string $date): array
     {
         $result = $this->request('GET', 'availabilities', [

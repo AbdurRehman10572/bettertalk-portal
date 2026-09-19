@@ -18,7 +18,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 |---|---|---|
 | P0 | Migrate appointment database | Complete: backup `backup-9.18.2026_18-05-11_catalogs.tar.gz` is verified; migration imported once; 20 queries succeeded; 8/8 tables, four services, and existing-row backfills validated |
 | P0 | Confirm deployment access | Complete: authenticated HostBreak, cPanel, Backup, and phpMyAdmin access worked on 18 September 2026; re-authenticate in the next session if the cPanel session has expired |
-| P0 | Complete Easy!Appointments setup | Files and dedicated DB/user already exist at `portal.bettertalk.pk/scheduler`; create server-side `config.php`, run setup, create/configure administrator/API access, restrict raw UI, and verify Portal API access |
+| P0 | Complete Easy!Appointments setup | Files and dedicated DB/user already exist at `portal.bettertalk.pk/scheduler`; create server-side `config.php`, run setup, create/configure administrator/API access, restrict raw UI, then deploy/use Admin `/scheduler-health` to verify Portal API authentication |
 | P0 | Deploy and verify identifier migration | Source migration is merged; back up the database, run it once, verify existing records, then test Client ID → Case ID → Agent Calls → Payment → Doctor/Appointment → Doctor Calls |
 | P0 | Deploy and verify availability/durations | Merged source implements Doctor self-service, Admin override, recurring hours, breaks, exceptions/leave, provider/service mapping, and 15/30/45/60-minute durations; migrate, configure, and role-test |
 | P0 | Deploy and verify 15-minute slot holds | Source is merged; test atomic first-wins holds, interval blocking, visible expiry, schedule conversion, automatic release, and conflict response against the migrated database |
@@ -37,6 +37,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 - **Paused installation milestone:** `catalogs_ea` plus its dedicated DB user are created; the archive is extracted at `/home/catalogs/public_html/portal.bettertalk.pk/scheduler`; the public `/scheduler` route reaches EasyAppointments and reports the expected missing `config.php` precondition. A reversible portal front-controller hand-off was added solely for `/scheduler`.
 - Resume with: copy `config-sample.php` to `config.php`, set `BASE_URL` to `https://portal.bettertalk.pk/scheduler`, set the dedicated database connection without recording its password in source/docs, run setup, configure administrator/API access, restrict the raw scheduler UI appropriately, and test Portal API synchronization.
 - Source alignment on 19 September 2026: `portal/app/config.example.php` now points to `https://portal.bettertalk.pk/scheduler`; this is source preparation only and does not prove live scheduler configuration.
+- Scheduler health diagnostic is implemented in source as Admin-only `/scheduler-health`; deploy it with the portal after live scheduler setup, then require a successful authenticated API check before provider/service mapping.
 
 ### Historical Production-Access Blocker
 

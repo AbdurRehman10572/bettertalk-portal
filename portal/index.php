@@ -113,6 +113,7 @@ function nav(array $u): string {
     }
     if (can($u, ['admin'])) {
         $items['users'] = 'Users';
+        $items['scheduler-health'] = 'Scheduler Health';
     }
     if (can($u, ['admin', 'doctor'])) {
         $items['doctor-availability'] = 'Availability';
@@ -686,6 +687,33 @@ function appointment_sync(): void {
     exit;
 }
 
+function scheduler_health(): void {
+    $u = require_user();
+    if (!can($u, ['admin'])) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+    global $config;
+    $client = new EasyAppointmentsClient($config['easyappointments'] ?? []);
+    $body = '<header><p>ADMIN</p><h1>Scheduler Health</h1></header><section class="panel">';
+    if (!$client->isConfigured()) {
+        $body .= '<p class="error">Easy!Appointments API credentials are not configured in the Better Talk portal yet.</p>';
+        $body .= '<p>Expected scheduler: <code>' . h((string)($config['easyappointments']['base_url'] ?? '')) . '</code></p>';
+    } else {
+        try {
+            $result = $client->healthCheck();
+            $body .= '<p class="notice">Scheduler API connection and authentication succeeded.</p>';
+            $body .= '<p><b>API authenticated:</b> ' . (!empty($result['api_authenticated']) ? 'Yes' : 'No') . '</p>';
+            $body .= '<p><b>Sample services returned:</b> ' . (int)($result['sample_service_count'] ?? 0) . '</p>';
+        } catch (Throwable $error) {
+            http_response_code(502);
+            $body .= '<p class="error">Scheduler API check failed: ' . h($error->getMessage()) . '</p>';
+        }
+    }
+    $body .= '</section>';
+    layout('Scheduler Health', $body);
+}
+
 function calls(): void {
     $u = require_user();
     if ($u['role'] === 'doctor') {
@@ -916,6 +944,7 @@ elseif ($r === 'appointment-book') appointment_book();
 elseif ($r === 'appointment-hold') appointment_hold();
 elseif ($r === 'appointment-schedule') appointment_schedule();
 elseif ($r === 'appointment-sync') appointment_sync();
+elseif ($r === 'scheduler-health') scheduler_health();
 elseif ($r === 'calls') calls();
 elseif ($r === 'payments') payments();
 elseif ($r === 'new-case') new_case();
