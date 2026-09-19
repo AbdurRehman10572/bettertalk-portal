@@ -1,6 +1,6 @@
 # Better Talk — Current Status
 
-**Status date:** 18 September 2026  
+**Status date:** 19 September 2026  
 **Important:** Deployed code and verified live functionality are tracked separately. Nothing is complete until its production acceptance test passes.
 
 ## 0. Immediate Production State
@@ -16,7 +16,7 @@
 | Lead and duplicate testing | Pending | Submit one synthetic lead, verify IDs/source/timestamp, then repeat it to test duplicate prevention |
 | `portal.catalogs.pk` | Blocked by HostBreak domain dependency | Live test on 18 September opened `https://portal.catalogs.pk/login` and displayed Better Talk. HostBreak has no redirect rule; the subdomain has the wrong document root: `/home/catalogs/public_html/portal.bettertalk.pk`. The requested source layout is now in place: `/home/catalogs/catalogs-site` for the Catalogs website and `/home/catalogs/catalogs-app` for the intended Catalogs portal. HostBreak rejects the in-place document-root update and states that `portal.catalogs.pk` cannot be deleted unless `portal.bettertalk.pk` is deleted first. Do not delete or alter the working Better Talk portal to force this change. |
 | Better Talk favicon | Source updated / QA | Source points to the Better Talk logo; production favicon remains unverified after rollback |
-| HostBreak/cPanel access | Restored for appointment deployment | On 18 September, authenticated HostBreak, cPanel, Backup, and phpMyAdmin access worked. The Better Talk production database was identified as `catalogs_btp`. A completed full-account backup is visible in cPanel as `backup-9.18.2026_18-05-11_catalogs.tar.gz`. The appointment migration was deliberately not run before the session pause. |
+| HostBreak/cPanel access | Restored for appointment deployment | On 18 September, authenticated HostBreak, cPanel, Backup, and phpMyAdmin access worked. The Better Talk production database was identified as `catalogs_btp`. A completed full-account backup is visible in cPanel as `backup-9.18.2026_18-05-11_catalogs.tar.gz`. The appointment migration was subsequently imported exactly once and validated successfully; do not rerun it. |
 
 ## 1. Business and Channels
 
@@ -103,8 +103,8 @@
 - A server-side cPanel full-account backup completed successfully and is listed as `backup-9.18.2026_18-05-11_catalogs.tar.gz` with timestamp 18 September 2026 18:05:11.
 - After the pause, `portal/sql/appointment_module_migration.sql` was imported exactly once into `catalogs_btp`. phpMyAdmin reported: `Import has been successfully finished, 20 queries executed.` Only MySQL deprecation warnings were shown; no migration error occurred.
 - Read-only validation passed: all 8 expected new tables exist; `BT-15`, `BT-30`, `BT-45`, and `BT-60` are active; the existing appointment has no missing Appointment ID/end time; both existing calls have call codes/kinds; the existing doctor has a Doctor ID; and both patients with normalized phones have normalized login mobiles.
-- No Easy!Appointments database/user/application has been created yet. Softaculous does not offer Easy!Appointments on this host. Official stable release `1.6.0` was downloaded from the upstream GitHub release and matched the published SHA-256 `299f8da75583ea185992ece4ac0b10e98f673825edbf75116446d99001911e60`.
-- Next action requires action-time approval to create a dedicated Easy!Appointments database/user with limited privileges and install the verified package at `schedule.bettertalk.pk`.
+- Softaculous does not offer Easy!Appointments on this host. Official stable release `1.6.0` was downloaded from the upstream GitHub release and matched the published SHA-256 `299f8da75583ea185992ece4ac0b10e98f673825edbf75116446d99001911e60`.
+- The dedicated Easy!Appointments database/user and application files were created/extracted later in the same deployment sequence; see section 3E. Do not repeat those steps.
 
 ## 3E. Easy!Appointments Installation Milestone — 18 September 2026
 
@@ -114,6 +114,12 @@
 - The existing portal front controller intercepted the scheduler route despite the physical folder. A reversible portal backup was made, then a narrow `/scheduler` hand-off was added before the portal bootstrap. This preserves existing portal routes while allowing EasyAppointments to respond.
 - Live verification at `/scheduler/index.php` now reaches EasyAppointments and reports only: root `config.php` is missing. This is the expected pre-setup state.
 - **Pause milestone:** do not repeat database creation, archive download, extraction, migration, or route work. Resume by copying `scheduler/config-sample.php` to `scheduler/config.php`, enter the dedicated database settings, run the EasyAppointments setup, create/configure the administrator and API access, then test Portal ↔ scheduling synchronization.
+
+## 3F. Scheduler Integration Source Alignment — 19 September 2026
+
+- Verified the portal source on `main`: `EasyAppointmentsClient.php` already targets `/index.php/api/v1/*` and supports both administrator Basic Auth and Bearer API-key authorization.
+- Updated `portal/app/config.example.php` on branch `chore/scheduler-config-checkpoint-20260919` so the production scheduler base URL is `https://portal.bettertalk.pk/scheduler`, matching the installed HostBreak path.
+- No live HostBreak file, scheduler database, administrator account, API credential, provider mapping, or appointment record was changed in this source-only step. Production setup remains pending from the existing `config.php` checkpoint.
 
 ## 4. Next Status Update Method
 
@@ -138,8 +144,8 @@ After each implementation/testing session, move functions into `Complete`, `Fail
 
 ## 5. Functionality-First Execution Order
 
-1. Create a dedicated least-privilege Easy!Appointments database/user and install/configure verified release `1.6.0` at `schedule.bettertalk.pk`; keep the Better Talk Portal as the operational master.
-2. Map the four services and doctor provider, configure API access, and validate Portal ↔ Easy!Appointments synchronization.
+1. Complete the existing Easy!Appointments installation at `https://portal.bettertalk.pk/scheduler`: create server-side `config.php` from the sample, enter the already-created dedicated database credentials, run setup, create/configure the administrator and API access, and keep the Better Talk Portal as the operational master.
+2. Map the four services and doctor provider, configure portal API credentials, and validate Portal ↔ Easy!Appointments synchronization.
 3. Deploy the CI-verified HostBreak SPA artifact while preserving the existing rollback archive, then reproduce and fix any remaining contact-form focus/typing failure with the smallest compatible production change.
 4. Verify one synthetic lead end-to-end, including Client ID, Lead ID, source, timestamp, fields, and duplicate prevention.
 5. Complete P0 role-security and audit-trail verification.
