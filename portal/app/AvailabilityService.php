@@ -127,6 +127,9 @@ final class AvailabilityService
     ): array {
         $this->doctor($doctorId);
         $plan = self::normalizeWorkingPlan($schedule);
+        if ($adminMayConfigure) {
+            $this->validateExternalMappings($serviceIds, $serviceEaIds, $providerId);
+        }
         $this->pdo->beginTransaction();
         try {
             if ($adminMayConfigure) {
