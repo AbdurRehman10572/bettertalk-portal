@@ -74,7 +74,7 @@ The agent does not stay between the doctor and client during the scheduled sessi
 - When an agent starts the booking action for an available slot, the portal places a **15-minute temporary hold**. Other agents see the slot as unavailable during the hold.
 - The first valid hold/booking transaction wins. Confirming the booking converts the hold into a scheduled appointment; timeout or abandonment releases it automatically.
 - A temporary hold is not a final appointment and does not receive the final Appointment ID.
-- Customer access is provided at `bettertalk.pk/customer-login` using a normalized mobile number plus password. Equivalent Pakistani phone formats must resolve safely to the same account. Forgotten-password recovery uses OTP.
+- Customer access is provided at `bettertalk.pk/customer-login` using a normalized mobile number plus password. Equivalent Pakistani phone formats must resolve safely to the same account. Forgotten-password recovery sends a newly generated temporary password to the registered customer email.
 - Customers can view upcoming and past appointments, including cancelled/no-answer outcomes, and payment status. They see the doctor's approved pseudonym and public profile details without a picture or private contact details.
 - Customers may submit reschedule or cancellation requests. The appointment changes only after an Agent or Admin approves and processes the request.
 - No automated appointment reminders are included in V1.
