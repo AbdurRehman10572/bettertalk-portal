@@ -93,7 +93,7 @@ Doctor should be able to:
 
 - Public route: `bettertalk.pk/customer-login`.
 - Login requires mobile number plus password. Normalize safe variants such as country-code, leading-zero, spaces, and hyphens so the same Pakistani number resolves consistently.
-- Forgotten-password recovery uses an OTP sent to the verified mobile number.
+- Forgotten-password recovery sends a newly generated temporary password to the customer's registered email address. The old password is never retrievable or emailed.
 - Display upcoming and past appointments, including cancelled/no-answer records, Appointment ID, date/time, duration, status, and payment status.
 - Display the doctor's approved pseudonym and approved public profile information such as specialty, categories, qualifications, and experience. Do not display a picture, real/internal name, personal phone/email, internal notes, Call IDs, or confidential session notes.
 - Allow the customer to submit `Reschedule Requested` or `Cancellation Requested`. Only an Agent or Admin may approve and apply the actual appointment change.
@@ -123,5 +123,5 @@ Search should support Client ID, Case ID, Agent Call ID, Doctor Call ID, Appoint
 - Admin sees the complete audit history across all roles.
 - Unauthorized roles cannot see or change restricted data.
 - Two agents cannot schedule the same doctor/slot; a 15-minute hold hides the slot and expiry releases it.
-- Customer can log in with normalized mobile number + password and recover a forgotten password by OTP.
+- Customer can log in with normalized mobile number + password and recover a forgotten password through a temporary password sent to the registered email.
 - Customer sees the doctor pseudonym/public details without picture or private identifiers and can submit, but not directly execute, cancellation/reschedule requests.

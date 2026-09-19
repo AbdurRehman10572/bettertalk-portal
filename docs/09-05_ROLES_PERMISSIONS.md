@@ -75,7 +75,7 @@
 
 ## 7. Customer Access (Not a Staff Role)
 
-- Customer login at `bettertalk.pk/customer-login` uses normalized mobile number plus password; password recovery uses OTP.
+- Customer login at `bettertalk.pk/customer-login` uses normalized mobile number plus password; password recovery sends a newly generated temporary password to the registered customer email.
 - Customer can view only their own upcoming/past appointments and permitted payment/status information.
 - Customer sees the doctor's approved pseudonym and public profile information, without picture, private contact details, Call IDs, or internal/clinical notes.
 - Customer may submit cancellation/reschedule requests but cannot approve them, alter appointments directly, self-book, or access staff functions.

@@ -23,8 +23,10 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 | P0 | Deploy and verify availability/durations | Merged source implements Doctor self-service, Admin override, recurring hours, breaks, exceptions/leave, provider/service mapping, and 15/30/45/60-minute durations; migrate, configure, and role-test |
 | P0 | Deploy and verify 15-minute slot holds | Source is merged; test atomic first-wins holds, interval blocking, visible expiry, schedule conversion, automatic release, and conflict response against the migrated database |
 | P0 | Complete three-role synchronization | Admin, Agent, and Doctor views/actions use the same availability and appointment state |
-| P0 | Build customer appointment access | Source implemented for `bettertalk.pk/customer-login`: normalized mobile + password, appointment/history/payment view, doctor pseudonym/public fields, and controlled requests. Live deployment/testing remains pending; OTP recovery still needs SMS provider/API |
+| P0 | Build customer appointment access | Source implemented for `bettertalk.pk/customer-login`: normalized mobile + password, appointment/history/payment view, doctor pseudonym/public fields, and controlled requests. Live deployment/testing remains pending; registered-email temporary-password recovery still needs SMS provider/API |
 | P0 | End-to-end appointment tests | Payment gate → doctor allocation → hold → schedule → doctor call → completion; concurrent agents; expiry; reschedule/cancellation approval; role-negative tests |
+
+- Email password-recovery source is prepared. Before deploying the new customer-login build, run `portal/sql/customer_email_recovery_migration.sql` exactly once to add `password_reset_required`; do not rerun the appointment migration. Then verify outbound email delivery from HostBreak.
 
 ### Current Production Deployment Checkpoint
 
@@ -122,7 +124,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 - Completing Easy!Appointments requires authenticated HostBreak cPanel/File Manager or SFTP/SSH access to create `scheduler/config.php` and finish the setup wizard. Required non-secret values are now fixed: `BASE_URL=https://portal.bettertalk.pk/scheduler`, `DB_HOST=localhost` unless HostBreak shows otherwise, `DB_NAME=catalogs_ea`, `DB_USERNAME=catalogs_ea`, `LANGUAGE=english`, `DEBUG_MODE=false`. Use the existing database-user password only on the server; never commit or document it. Do not recreate the existing database/user or reinstall the archive.
 - Customer-access source merged in the public website repository as commit `970ef183`; HostBreak artifact CI passed. Live deployment/testing remains pending.
 - Agent/Admin customer request review queue passed CI and merged as commit `9631eb21`; live verification remains pending.
-- OTP password recovery requires an SMS provider/API configuration. Automated appointment reminders are not required.
+- registered-email temporary-password recovery has been removed from scope. Forgotten-password recovery uses the customer's registered email and sends a newly generated temporary password; live email delivery still requires HostBreak/PHP mail verification. Automated appointment reminders are not required.
 
 ## Recommended Work Instruction
 

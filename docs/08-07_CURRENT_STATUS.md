@@ -67,7 +67,7 @@
 - Better Talk Portal is the master operational system and Easy!Appointments is the integrated scheduling engine.
 - Doctor availability is self-managed with Admin override; doctor durations are selected from 15/30/45/60 minutes.
 - Booking uses a 15-minute temporary hold; timeout/abandonment releases the slot.
-- Customer login uses normalized mobile number + password with OTP recovery and displays doctor pseudonym/public details without a picture.
+- Customer login uses normalized mobile number + password with registered-email temporary-password recovery and displays doctor pseudonym/public details without a picture.
 - Customer cancellation/reschedule actions create requests requiring Agent/Admin approval; no automatic reminders are included in V1.
 - Identifier chain is Client ID → Case ID → multiple Agent Call IDs → Payment → Doctor ID + Appointment ID → multiple Doctor Call IDs.
 
@@ -174,7 +174,17 @@ Production acceptance sequence after setup: scheduler login works → authentica
 - Customer reschedule/cancellation submissions create `appointment_change_requests`.
 - Agent/Admin review queue is implemented and merged in portal commit `9631eb21`; approve/reject actions are audited.
 - Public-site HostBreak CI passed and the customer-access change merged as commit `970ef183`.
-- OTP recovery and live deployment/testing remain pending. Source implementation for customer access and staff request review is complete.
+- Email temporary-password recovery is implemented in source; live mail delivery, migration deployment, and production testing remain pending. Source implementation for customer access and staff request review is complete.
+
+## 3M. Customer Email Password Recovery — 19 September 2026
+
+- Approved recovery method changed from mobile OTP to registered email.
+- Existing `patients.email` is the recovery address; no duplicate login-email column is required.
+- Public customer-access source generates a new temporary password, emails it to the registered email, stores only its hash, and requires the customer to set a new password after login.
+- The old password is never retrievable or emailed.
+- Agent/Admin portal source now captures or corrects the customer's registered email, and new manual cases populate normalized login mobile data.
+- New follow-up migration `customer_email_recovery_migration.sql` adds the `password_reset_required` flag. The legacy OTP table may remain unused; do not drop it as part of this small migration.
+- Live deployment and email-delivery verification are still pending.
 
 ## 4. Next Status Update Method
 

@@ -504,7 +504,7 @@ function cases(): void {
 function case_detail(): void {
     $u = require_user();
     $id = (int)($_GET['id'] ?? 0);
-    $stmt = db()->prepare("SELECT c.*, p.name patient_name, p.city, p.plan_name, p.notes, p.client_code,
+    $stmt = db()->prepare("SELECT c.*, p.name patient_name, p.city, p.plan_name, p.notes, p.client_code, p.email patient_email,
         l.lead_code, l.source_channel lead_source, l.received_at lead_received_at, l.form_answers,
         d.name doctor_name,
         (SELECT py.id FROM payments py WHERE py.case_id=c.id AND py.status='paid' ORDER BY py.id DESC LIMIT 1) paid_payment_id
@@ -522,7 +522,7 @@ function case_detail(): void {
     }
     $calls = db()->prepare('SELECT * FROM calls WHERE case_id=? ORDER BY id DESC');
     $calls->execute([$id]);
-    $body = '<header><p>CASE</p><h1>' . h($case['case_code']) . '</h1></header><section class="panel split"><div><h2>' . h($case['patient_name']) . '</h2><p><b>Client ID:</b> ' . h($case['client_code']) . '</p><p><b>Lead ID:</b> ' . h($case['lead_code'] ?: 'Manual / IVR case') . '</p><p><b>Lead source:</b> ' . h($case['lead_source'] ?: $case['source_channel']) . '</p><p><b>Received:</b> ' . h($case['lead_received_at'] ?: $case['created_at']) . '</p><p><b>Plan:</b> ' . h($case['plan_name']) . '</p><p><b>Service:</b> ' . h($case['service_type']) . '</p><p><b>Doctor:</b> ' . h($case['doctor_name'] ?: 'Unassigned') . '</p><p><b>Status:</b> ' . status_badge($case['status']) . '</p><p>' . h($case['summary']) . '</p></div><div class="callbox"><h2>Masked call</h2><p>Phone number is hidden. The backend calls the IVR API using this Case ID.</p>';
+    $body = '<header><p>CASE</p><h1>' . h($case['case_code']) . '</h1></header><section class="panel split"><div><h2>' . h($case['patient_name']) . '</h2><p><b>Client ID:</b> ' . h($case['client_code']) . '</p><p><b>Registered email:</b> ' . h($case['patient_email'] ?: 'Not set') . '</p><p><b>Lead ID:</b> ' . h($case['lead_code'] ?: 'Manual / IVR case') . '</p><p><b>Lead source:</b> ' . h($case['lead_source'] ?: $case['source_channel']) . '</p><p><b>Received:</b> ' . h($case['lead_received_at'] ?: $case['created_at']) . '</p><p><b>Plan:</b> ' . h($case['plan_name']) . '</p><p><b>Service:</b> ' . h($case['service_type']) . '</p><p><b>Doctor:</b> ' . h($case['doctor_name'] ?: 'Unassigned') . '</p><p><b>Status:</b> ' . status_badge($case['status']) . '</p><p>' . h($case['summary']) . '</p></div><div class="callbox"><h2>Masked call</h2><p>Phone number is hidden. The backend calls the IVR API using this Case ID.</p>';
     if (can($u, ['admin','doctor','agent']) && $case['assigned_doctor_id']) {
         $body .= '<form method="post" action="/start-call"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="case_id" value="' . (int)$case['id'] . '"><button>Start masked call</button></form>';
     }
@@ -533,7 +533,7 @@ function case_detail(): void {
         } else {
             $body .= '<section class="panel"><h2>Appointment scheduling</h2><p class="muted">Verify payment before allocating a doctor or holding a slot.</p></section>';
         }
-        $body .= '<section class="panel"><h2>Agent/admin controls</h2><form method="post" action="/case-update" class="form inline-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="case_id" value="' . (int)$case['id'] . '"><label>Case status<select name="status">' . option_list(case_statuses_for($u), $case['status']) . '</select></label><label>Payment status<select name="payment_status"><option value="">No change</option><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></label><label>Amount PKR<input name="amount_pkr" type="number" step="1" min="0" placeholder="1200"></label><label>Payment ref<input name="payment_ref" placeholder="JazzCash / bank ref"></label><label>Internal note<textarea name="summary">' . h($case['summary']) . '</textarea></label><button>Save updates</button></form></section>';
+        $body .= '<section class="panel"><h2>Agent/admin controls</h2><form method="post" action="/case-update" class="form inline-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="case_id" value="' . (int)$case['id'] . '"><label>Case status<select name="status">' . option_list(case_statuses_for($u), $case['status']) . '</select></label><label>Payment status<select name="payment_status"><option value="">No change</option><option value="pending">Pending</option><option value="paid">Paid</option><option value="failed">Failed</option><option value="refunded">Refunded</option></select></label><label>Amount PKR<input name="amount_pkr" type="number" step="1" min="0" placeholder="1200"></label><label>Payment ref<input name="payment_ref" placeholder="JazzCash / bank ref"></label><label>Registered customer email<input name="customer_email" type="email" value="' . h($case['patient_email'] ?? '') . '" placeholder="customer@example.com"></label><label>Internal note<textarea name="summary">' . h($case['summary']) . '</textarea></label><button>Save updates</button></form></section>';
     } elseif ($u['role'] === 'doctor') {
         $body .= '<section class="panel"><h2>Doctor status</h2><form method="post" action="/case-update" class="form inline-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="case_id" value="' . (int)$case['id'] . '"><label>Status<select name="status">' . option_list(case_statuses_for($u), $case['status']) . '</select></label><button>Update status</button></form></section>';
     }
@@ -567,6 +567,11 @@ function case_update(): void {
         $doctorId = $case['assigned_doctor_id'] ? (int)$case['assigned_doctor_id'] : null;
         $stmt = $pdo->prepare('UPDATE cases SET status=?, assigned_doctor_id=?, summary=? WHERE id=?');
         $stmt->execute([$status, $doctorId, trim($_POST['summary'] ?? ''), $caseId]);
+        $customerEmail = strtolower(trim((string)($_POST['customer_email'] ?? '')));
+        if ($customerEmail !== '' && !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException('Enter a valid registered customer email.');
+        }
+        $pdo->prepare('UPDATE patients SET email=? WHERE id=?')->execute([$customerEmail !== '' ? $customerEmail : null, (int)$case['patient_id']]);
         if (!empty($_POST['payment_status'])) {
             $stmt = $pdo->prepare('INSERT INTO payments (case_id, provider, payment_ref, amount_pkr, status) VALUES (?, ?, ?, ?, ?)');
             $stmt->execute([$caseId, 'manual', trim($_POST['payment_ref'] ?? ''), (float)($_POST['amount_pkr'] ?? 0), $_POST['payment_status']]);
@@ -892,8 +897,14 @@ function new_case(): void {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         check_csrf();
         $pdo->beginTransaction();
-        $stmt = $pdo->prepare('INSERT INTO patients (name, phone, city, plan_name, notes) VALUES (?, ?, ?, ?, ?)');
-        $stmt->execute([trim($_POST['name']), trim($_POST['phone']), trim($_POST['city']), trim($_POST['plan_name']), trim($_POST['notes'])]);
+        $phone = trim((string)$_POST['phone']);
+        $normalizedPhone = normalize_phone($phone);
+        $email = strtolower(trim((string)($_POST['email'] ?? '')));
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException('Enter a valid customer email.');
+        }
+        $stmt = $pdo->prepare('INSERT INTO patients (name, phone, phone_normalized, email, login_mobile_normalized, city, plan_name, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt->execute([trim($_POST['name']), $phone, $normalizedPhone, $email !== '' ? $email : null, $normalizedPhone, trim($_POST['city']), trim($_POST['plan_name']), trim($_POST['notes'])]);
         $patientId = (int)$pdo->lastInsertId();
         $caseCode = 'BT-' . date('Ymd') . '-' . str_pad((string)$patientId, 4, '0', STR_PAD_LEFT);
         $stmt = $pdo->prepare('INSERT INTO cases (case_code, patient_id, assigned_doctor_id, assigned_agent_id, service_type, status, summary) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -910,7 +921,7 @@ function new_case(): void {
     foreach ($doctors as $doctor) {
         $options .= '<option value="' . (int)$doctor['id'] . '">' . h($doctor['name']) . '</option>';
     }
-    $body = '<header><p>INTAKE</p><h1>New Case</h1></header><section class="panel"><form method="post" class="form"><input type="hidden" name="csrf" value="' . csrf() . '"><label>Customer name<input name="name" required></label><label>Customer phone<input name="phone" required></label><label>City<input name="city"></label><label>Plan<input name="plan_name"></label><label>Service type<input name="service_type" required></label><label>Assign doctor<select name="doctor_id">' . $options . '</select></label><label>Case summary<textarea name="summary"></textarea></label><label>Private notes<textarea name="notes"></textarea></label><button>Create case</button></form></section>';
+    $body = '<header><p>INTAKE</p><h1>New Case</h1></header><section class="panel"><form method="post" class="form"><input type="hidden" name="csrf" value="' . csrf() . '"><label>Customer name<input name="name" required></label><label>Customer phone<input name="phone" required></label><label>Registered email<input name="email" type="email" placeholder="customer@example.com"></label><label>City<input name="city"></label><label>Plan<input name="plan_name"></label><label>Service type<input name="service_type" required></label><label>Assign doctor<select name="doctor_id">' . $options . '</select></label><label>Case summary<textarea name="summary"></textarea></label><label>Private notes<textarea name="notes"></textarea></label><button>Create case</button></form></section>';
     layout('New Case', $body);
 }
 
