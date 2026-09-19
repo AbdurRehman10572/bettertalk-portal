@@ -301,6 +301,18 @@ final class AvailabilityService
         }
     }
 
+    public static function validateDurationPair(int $localDuration, int $externalDuration): void
+    {
+        if ($localDuration < 1 || $externalDuration < 1) {
+            throw new InvalidArgumentException('Service durations must be positive.');
+        }
+        if ($localDuration !== $externalDuration) {
+            throw new RuntimeException(
+                $localDuration . '-minute Better Talk duration cannot map to a ' . $externalDuration . '-minute Easy!Appointments service.'
+            );
+        }
+    }
+
     private function validateExternalMappings(array $serviceIds, array $serviceEaIds, ?int $providerId): void
     {
         if (!$this->easyAppointments->isConfigured()) {
@@ -355,10 +367,8 @@ final class AvailabilityService
             $externalDuration = isset($externalServices[$externalId]['duration'])
                 ? (int)$externalServices[$externalId]['duration']
                 : 0;
-            if ($externalDuration > 0 && $externalDuration !== $localDuration) {
-                throw new RuntimeException(
-                    $localDuration . '-minute Better Talk duration cannot map to a ' . $externalDuration . '-minute Easy!Appointments service.'
-                );
+            if ($externalDuration > 0) {
+                self::validateDurationPair($localDuration, $externalDuration);
             }
         }
     }
