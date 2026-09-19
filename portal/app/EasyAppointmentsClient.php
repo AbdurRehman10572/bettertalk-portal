@@ -33,6 +33,18 @@ final class EasyAppointmentsClient
         ];
     }
 
+    public function providers(): array
+    {
+        $result = $this->request('GET', 'providers', ['page' => 1, 'length' => 200]);
+        return array_values(array_filter($result, static fn($row): bool => is_array($row) && (int)($row['id'] ?? 0) > 0));
+    }
+
+    public function services(): array
+    {
+        $result = $this->request('GET', 'services', ['page' => 1, 'length' => 200]);
+        return array_values(array_filter($result, static fn($row): bool => is_array($row) && (int)($row['id'] ?? 0) > 0));
+    }
+
     public function availabilities(int $providerId, int $serviceId, string $date): array
     {
         $result = $this->request('GET', 'availabilities', [

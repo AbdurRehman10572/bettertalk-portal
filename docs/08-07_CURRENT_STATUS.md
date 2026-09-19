@@ -144,6 +144,13 @@ Production acceptance sequence after setup: scheduler login works → authentica
 - A successful check proves portal → scheduler HTTPS/API authentication only. Provider/service mappings and booking behavior still require separate production tests.
 - This source change is not a production pass until deployed and exercised against the live scheduler.
 
+## 3I. Scheduler Mapping Discovery — 19 September 2026
+
+- Added Easy!Appointments provider/service discovery to the portal integration client.
+- Admin Doctor Availability now loads available scheduler providers and services from the authenticated API and presents selectable mappings instead of requiring manual external-ID entry.
+- If the scheduler API is not configured or unreachable, the Admin screen shows the mapping-discovery error instead of silently accepting guessed IDs.
+- This remains source-only until deployed and tested against the live scheduler.
+
 ## 4. Next Status Update Method
 
 After each implementation/testing session, move functions into `Complete`, `Failed`, `Blocked`, or `Pending`, and record test evidence such as test lead ID, test role, timestamp, and observed result. Do not store live client-sensitive data in this document.
