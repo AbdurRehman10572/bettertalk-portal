@@ -114,9 +114,10 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 - Refund/override authority and rules.
 - Call recording announcement, consent, and retention policy.
 - Doctor-session note visibility and retention.
-- Customer account provisioning/initial password setup method, unless the existing portal registration flow already defines it securely.
 
 ## Appointment Implementation Blockers / Required Access
+
+- 19 September live verification attempt from this chat could not access `bettertalk.pk/customer-login`, `portal.bettertalk.pk/scheduler`, or `portal.bettertalk.pk/scheduler-health` through the available web tool. No production change was attempted. Authenticated HostBreak/cPanel or Work-mode browser access is still required for deployment and runtime verification.
 
 - Appointment foundation pull request #1 passed PHP CI and was merged to `main` as commit `ba05d6a` on 18 September 2026.
 - Doctor availability pull request #2 passed native PHP syntax and expanded appointment/availability tests in GitHub Actions run `35346914933`, then merged to `main` as commit `a45d795`.
@@ -124,7 +125,7 @@ Prioritize complete operational features and end-to-end modules. Defer cosmetic 
 - Completing Easy!Appointments requires authenticated HostBreak cPanel/File Manager or SFTP/SSH access to create `scheduler/config.php` and finish the setup wizard. Required non-secret values are now fixed: `BASE_URL=https://portal.bettertalk.pk/scheduler`, `DB_HOST=localhost` unless HostBreak shows otherwise, `DB_NAME=catalogs_ea`, `DB_USERNAME=catalogs_ea`, `LANGUAGE=english`, `DEBUG_MODE=false`. Use the existing database-user password only on the server; never commit or document it. Do not recreate the existing database/user or reinstall the archive.
 - Customer-access source merged in the public website repository as commit `970ef183`; HostBreak artifact CI passed. Live deployment/testing remains pending.
 - Agent/Admin customer request review queue passed CI and merged as commit `9631eb21`; live verification remains pending.
-- registered-email temporary-password recovery has been removed from scope. Forgotten-password recovery uses the customer's registered email and sends a newly generated temporary password; live email delivery still requires HostBreak/PHP mail verification. Automated appointment reminders are not required.
+- OTP recovery has been removed from scope. Forgotten-password recovery uses the customer's registered email and sends a newly generated temporary password; live email delivery still requires HostBreak/PHP mail verification. Automated appointment reminders are not required.
 
 ## Recommended Work Instruction
 
