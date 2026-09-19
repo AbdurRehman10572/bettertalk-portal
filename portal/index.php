@@ -341,7 +341,7 @@ function doctor_availability(): void {
         foreach ($catalog['providers'] as $provider) {
             $providerName = trim((string)(($provider['firstName'] ?? '') . ' ' . ($provider['lastName'] ?? '')));
             if ($providerName === '') {
-                $providerName = (string)($provider['email'] ?? ('Provider ' . (int)$provider['id']);
+                $providerName = (string)($provider['email'] ?? ('Provider ' . (int)$provider['id']));
             }
             $providerOptions[(int)$provider['id']] = $providerName . ' (#' . (int)$provider['id'] . ')';
         }
