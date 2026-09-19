@@ -121,6 +121,22 @@
 - Updated `portal/app/config.example.php` on branch `chore/scheduler-config-checkpoint-20260919` so the production scheduler base URL is `https://portal.bettertalk.pk/scheduler`, matching the installed HostBreak path.
 - No live HostBreak file, scheduler database, administrator account, API credential, provider mapping, or appointment record was changed in this source-only step. Production setup remains pending from the existing `config.php` checkpoint.
 
+## 3G. Exact Live Resume Contract — 19 September 2026
+
+Before opening the Easy!Appointments setup wizard, the server-side `scheduler/config.php` must be created from the installed 1.6.0 `config-sample.php` with these non-secret values:
+
+- `BASE_URL = 'https://portal.bettertalk.pk/scheduler'` (no trailing slash).
+- `LANGUAGE = 'english'`.
+- `DEBUG_MODE = false` in production.
+- `DB_HOST = 'localhost'` unless HostBreak exposes a different MySQL hostname in the already-created database connection details.
+- `DB_NAME = 'catalogs_ea'`.
+- `DB_USERNAME = 'catalogs_ea'`.
+- `DB_PASSWORD` must be taken from the existing HostBreak database-user credential and must never be committed to GitHub or copied into project documentation.
+
+The installed Easy!Appointments 1.6.0 API exposes resources under `/index.php/api/v1/` and supports Bearer-token or Basic authentication. The Better Talk portal client already uses this path. After setup, validate API authentication before mapping providers/services.
+
+Production acceptance sequence after setup: scheduler login works → authenticated API request succeeds → provider mapping → `BT-15/30/45/60` service mapping → availability read → one temporary hold → booking conversion → portal appointment sync. Do not mark the scheduler integration complete before this sequence passes.
+
 ## 4. Next Status Update Method
 
 After each implementation/testing session, move functions into `Complete`, `Failed`, `Blocked`, or `Pending`, and record test evidence such as test lead ID, test role, timestamp, and observed result. Do not store live client-sensitive data in this document.
