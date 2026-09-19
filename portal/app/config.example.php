@@ -15,9 +15,10 @@ return [
         'caller_id' => '',
     ],
     'easyappointments' => [
-        // Installation root, for example https://schedule.bettertalk.pk
-        'base_url' => '',
-        // Prefer an API key. Basic-auth credentials remain available as fallback.
+        // Production scheduler installation root. Keep the trailing slash off.
+        'base_url' => 'https://portal.bettertalk.pk/scheduler',
+        // Easy!Appointments v1 API supports a configured Bearer API key or administrator Basic Auth.
+        // Prefer a dedicated API key in production; never commit live credentials.
         'api_key' => '',
         'username' => '',
         'password' => '',
