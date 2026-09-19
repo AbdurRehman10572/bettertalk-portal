@@ -94,6 +94,24 @@ expect_true($exception['date'] === '2026-09-25', 'Date exceptions must retain th
 $leave = AvailabilityService::normalizeUnavailability('2026-09-25T12:00', '2026-09-25T16:00');
 expect_true($leave['utc_start']->format('Y-m-d H:i:s') === '2026-09-25 07:00:00', 'PKT leave must be stored in UTC.');
 
+AvailabilityService::validateDurationPair(30, 30);
+
+$durationMismatchFailed = false;
+try {
+    AvailabilityService::validateDurationPair(30, 60);
+} catch (RuntimeException $error) {
+    $durationMismatchFailed = true;
+}
+expect_true($durationMismatchFailed, 'Mismatched scheduler service durations must be rejected.');
+
+$invalidDurationFailed = false;
+try {
+    AvailabilityService::validateDurationPair(0, 30);
+} catch (InvalidArgumentException $error) {
+    $invalidDurationFailed = true;
+}
+expect_true($invalidDurationFailed, 'Non-positive service durations must be rejected.');
+
 $invalidLeaveFailed = false;
 try {
     AvailabilityService::normalizeUnavailability('2026-09-25T16:00', '2026-09-25T12:00');
