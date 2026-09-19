@@ -137,6 +137,13 @@ The installed Easy!Appointments 1.6.0 API exposes resources under `/index.php/ap
 
 Production acceptance sequence after setup: scheduler login works → authenticated API request succeeds → provider mapping → `BT-15/30/45/60` service mapping → availability read → one temporary hold → booking conversion → portal appointment sync. Do not mark the scheduler integration complete before this sequence passes.
 
+## 3H. Scheduler Health Diagnostic — 19 September 2026
+
+- Added an Admin-only `/scheduler-health` portal page in source.
+- It never displays API credentials. It reports whether the portal scheduler integration is configured and, when credentials exist, performs an authenticated read-only Easy!Appointments API request against `services`.
+- A successful check proves portal → scheduler HTTPS/API authentication only. Provider/service mappings and booking behavior still require separate production tests.
+- This source change is not a production pass until deployed and exercised against the live scheduler.
+
 ## 4. Next Status Update Method
 
 After each implementation/testing session, move functions into `Complete`, `Failed`, `Blocked`, or `Pending`, and record test evidence such as test lead ID, test role, timestamp, and observed result. Do not store live client-sensitive data in this document.
