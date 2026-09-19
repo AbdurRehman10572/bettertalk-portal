@@ -186,6 +186,13 @@ Production acceptance sequence after setup: scheduler login works → authentica
 - New follow-up migration `customer_email_recovery_migration.sql` adds the `password_reset_required` flag. The legacy OTP table may remain unused; do not drop it as part of this small migration.
 - Live deployment and email-delivery verification are still pending.
 
+## 3N. Live Runtime Access Check — 19 September 2026
+
+- Attempted read-only verification of `bettertalk.pk/customer-login`, `portal.bettertalk.pk/scheduler`, and `portal.bettertalk.pk/scheduler-health`.
+- The available web tool could not access these production routes, so runtime deployment state could not be independently verified from this chat.
+- No production hosting, database, DNS, or credential change was attempted.
+- Next live work still requires authenticated HostBreak/cPanel, SFTP/SSH, or Work-mode browser/computer access.
+
 ## 4. Next Status Update Method
 
 After each implementation/testing session, move functions into `Complete`, `Failed`, `Blocked`, or `Pending`, and record test evidence such as test lead ID, test role, timestamp, and observed result. Do not store live client-sensitive data in this document.
