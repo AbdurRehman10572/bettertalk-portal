@@ -172,9 +172,9 @@ Production acceptance sequence after setup: scheduler login works → authentica
 - Customer view is limited to own appointments/history, payment status, Client ID, and approved doctor pseudonym/public profile fields.
 - Internal notes, Call IDs, real/private doctor identity, and staff-only functions are not returned.
 - Customer reschedule/cancellation submissions create `appointment_change_requests`.
-- Agent/Admin review queue is implemented in portal source with approve/reject audit events.
+- Agent/Admin review queue is implemented and merged in portal commit `9631eb21`; approve/reject actions are audited.
 - Public-site HostBreak CI passed and the customer-access change merged as commit `970ef183`.
-- OTP recovery and live deployment/testing remain pending.
+- OTP recovery and live deployment/testing remain pending. Source implementation for customer access and staff request review is complete.
 
 ## 4. Next Status Update Method
 
