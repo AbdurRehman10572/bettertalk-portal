@@ -110,6 +110,7 @@ function nav(array $u): string {
     if (can($u, ['admin', 'agent'])) {
         $items['new-case'] = 'New Case';
         $items['leads'] = 'Website Leads';
+        $items['customer-requests'] = 'Customer Requests';
     }
     if (can($u, ['admin'])) {
         $items['users'] = 'Users';
@@ -602,6 +603,106 @@ function appointments(): void {
     layout('Appointments', $body);
 }
 
+function customer_requests(): void {
+    $u = require_user();
+    if (!can($u, ['admin', 'agent'])) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+
+    $status = (string)($_GET['status'] ?? 'pending');
+    if (!in_array($status, ['pending', 'approved', 'rejected', 'withdrawn'], true)) {
+        $status = 'pending';
+    }
+
+    $stmt = db()->prepare(
+        "SELECT r.*, a.appointment_code, a.status appointment_status, a.case_id, a.scheduled_at,
+                p.name patient_name, p.client_code, dp.pseudonym doctor_name
+         FROM appointment_change_requests r
+         JOIN appointments a ON a.id=r.appointment_id
+         JOIN patients p ON p.id=r.patient_id
+         LEFT JOIN doctor_profiles dp ON dp.user_id=a.doctor_id
+         WHERE r.status=?
+         ORDER BY r.created_at DESC"
+    );
+    $stmt->execute([$status]);
+    $rows = $stmt->fetchAll();
+
+    $tabs = '';
+    foreach (['pending','approved','rejected','withdrawn'] as $tab) {
+        $tabs .= '<a class="buttonlink" href="/customer-requests?status=' . h($tab) . '">' . h(ucfirst($tab)) . '</a> ';
+    }
+
+    $body = '<header><p>CUSTOMER ACCESS</p><h1>Customer Requests</h1></header><section class="panel"><div class="panel-head"><div><h2>' . h(ucfirst($status)) . ' requests</h2><p>Approving a request records operational approval only. Any actual reschedule/cancellation must still be completed through the appointment workflow.</p></div><div>' . $tabs . '</div></div><table><tr><th>Appointment</th><th>Client</th><th>Doctor</th><th>Type</th><th>Requested</th><th>Reason</th><th>Status</th><th>Action</th></tr>';
+    foreach ($rows as $row) {
+        $action = '-';
+        if ($status === 'pending') {
+            $action = '<form method="post" action="/customer-request-review" class="compact-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="request_id" value="' . (int)$row['id'] . '"><input type="hidden" name="decision" value="approved"><button>Approve</button></form>' .
+                '<form method="post" action="/customer-request-review" class="compact-form"><input type="hidden" name="csrf" value="' . csrf() . '"><input type="hidden" name="request_id" value="' . (int)$row['id'] . '"><input type="hidden" name="decision" value="rejected"><button>Reject</button></form>' .
+                '<a href="/case?id=' . (int)$row['case_id'] . '">Open case</a>';
+        } elseif ($row['reviewed_by_user_id']) {
+            $action = 'Reviewed';
+        }
+        $requestedAt = $row['requested_start_at'] ? AppointmentService::utcToPakistan($row['requested_start_at']) . ' PKT' : '-';
+        $body .= '<tr><td>' . h($row['appointment_code']) . '<br><small>' . h(AppointmentService::utcToPakistan($row['scheduled_at'])) . ' PKT</small></td><td>' . h($row['patient_name']) . '<br><small>' . h($row['client_code']) . '</small></td><td>' . h($row['doctor_name'] ?: 'Better Talk Expert') . '</td><td>' . h(ucfirst($row['request_type'])) . '</td><td>' . h($requestedAt) . '</td><td>' . h($row['reason']) . '</td><td>' . status_badge($row['status']) . '</td><td>' . $action . '</td></tr>';
+    }
+    if (!$rows) {
+        $body .= '<tr><td colspan="8">No ' . h($status) . ' customer requests.</td></tr>';
+    }
+    $body .= '</table></section>';
+    layout('Customer Requests', $body);
+}
+
+function customer_request_review(): void {
+    $u = require_user();
+    if (!can($u, ['admin', 'agent'])) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+    check_csrf();
+
+    $requestId = (int)($_POST['request_id'] ?? 0);
+    $decision = (string)($_POST['decision'] ?? '');
+    if ($requestId < 1 || !in_array($decision, ['approved', 'rejected'], true)) {
+        http_response_code(422);
+        exit('Invalid request review.');
+    }
+
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM appointment_change_requests WHERE id=? AND status='pending' FOR UPDATE");
+        $stmt->execute([$requestId]);
+        $request = $stmt->fetch();
+        if (!$request) {
+            throw new RuntimeException('Customer request is no longer pending.');
+        }
+
+        $stmt = $pdo->prepare(
+            'UPDATE appointment_change_requests
+             SET status=?, reviewed_by_user_id=?, reviewed_at=UTC_TIMESTAMP()
+             WHERE id=?'
+        );
+        $stmt->execute([$decision, (int)$u['id'], $requestId]);
+        $pdo->commit();
+
+        audit((int)$u['id'], 'customer.appointment_request.' . $decision, 'appointment_change_request', (string)$requestId, [
+            'appointment_id' => (int)$request['appointment_id'],
+            'request_type' => $request['request_type'],
+        ]);
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        http_response_code(409);
+        layout('Request review failed', '<section class="panel"><h1>Could not review request</h1><p class="error">' . h($error->getMessage()) . '</p><a href="/customer-requests">Back to requests</a></section>');
+        return;
+    }
+
+    header('Location: /customer-requests?status=pending');
+    exit;
+}
+
 function appointment_book(): void {
     $u = require_user();
     if (!can($u, ['admin', 'agent'])) {
@@ -973,6 +1074,8 @@ elseif ($r === 'cases') cases();
 elseif ($r === 'case') case_detail();
 elseif ($r === 'case-update') case_update();
 elseif ($r === 'appointments') appointments();
+elseif ($r === 'customer-requests') customer_requests();
+elseif ($r === 'customer-request-review') customer_request_review();
 elseif ($r === 'appointment-book') appointment_book();
 elseif ($r === 'appointment-hold') appointment_hold();
 elseif ($r === 'appointment-schedule') appointment_schedule();
