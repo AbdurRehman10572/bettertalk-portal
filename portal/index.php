@@ -270,6 +270,19 @@ function availability_result_notice(array $result): string {
     return '<p class="error">Saved locally, but scheduling sync needs attention: ' . h((string)($result['sync_error'] ?? 'not configured')) . '</p>';
 }
 
+function scheduler_mapping_catalog(): array {
+    global $config;
+    $client = new EasyAppointmentsClient($config['easyappointments'] ?? []);
+    if (!$client->isConfigured()) {
+        return ['providers' => [], 'services' => [], 'error' => 'Easy!Appointments API is not configured yet.'];
+    }
+    try {
+        return ['providers' => $client->providers(), 'services' => $client->services(), 'error' => null];
+    } catch (Throwable $error) {
+        return ['providers' => [], 'services' => [], 'error' => $error->getMessage()];
+    }
+}
+
 function doctor_availability(): void {
     $u = require_user();
     $doctorId = availability_target($u);
@@ -320,11 +333,31 @@ function doctor_availability(): void {
     }
     $body .= '</table></div>';
     if ($u['role'] === 'admin') {
-        $body .= '<div class="inline-form"><label>Easy!Appointments provider ID<input type="number" min="1" name="ea_provider_id" value="' . h((string)($doctor['ea_provider_id'] ?? '')) . '" required></label><fieldset><legend>Permitted durations</legend><div class="check-row">';
+        $catalog = scheduler_mapping_catalog();
+        if (!empty($catalog['error'])) {
+            $body .= '<p class="error">Scheduler mapping discovery unavailable: ' . h((string)$catalog['error']) . '</p>';
+        }
+        $providerOptions = ['' => 'Select Easy!Appointments provider'];
+        foreach ($catalog['providers'] as $provider) {
+            $providerName = trim((string)(($provider['firstName'] ?? '') . ' ' . ($provider['lastName'] ?? '')));
+            if ($providerName === '') {
+                $providerName = (string)($provider['email'] ?? ('Provider ' . (int)$provider['id']);
+            }
+            $providerOptions[(int)$provider['id']] = $providerName . ' (#' . (int)$provider['id'] . ')';
+        }
+        $body .= '<div class="inline-form"><label>Easy!Appointments provider<select name="ea_provider_id" required>' . option_list($providerOptions, $doctor['ea_provider_id'] ?? null) . '</select></label><fieldset><legend>Permitted durations</legend><div class="check-row">';
         foreach ($services as $duration) {
             $checked = (int)$duration['assigned'] === 1 ? ' checked' : '';
             $mapped = $duration['ea_service_id'] ? '' : ' (mapping needed)';
-            $body .= '<label><input type="checkbox" name="service_ids[]" value="' . (int)$duration['id'] . '"' . $checked . '> ' . (int)$duration['duration_minutes'] . ' min' . h($mapped) . '<input type="number" min="1" name="service_ea_ids[' . (int)$duration['id'] . ']" value="' . h((string)($duration['ea_service_id'] ?? '')) . '" placeholder="EA service ID"></label>';
+            $serviceOptions = ['' => 'Select EA service'];
+            foreach ($catalog['services'] as $eaService) {
+                $label = trim((string)($eaService['name'] ?? ('Service ' . (int)$eaService['id'])));
+                if (isset($eaService['duration'])) {
+                    $label .= ' — ' . (int)$eaService['duration'] . ' min';
+                }
+                $serviceOptions[(int)$eaService['id']] = $label . ' (#' . (int)$eaService['id'] . ')';
+            }
+            $body .= '<label><input type="checkbox" name="service_ids[]" value="' . (int)$duration['id'] . '"' . $checked . '> ' . (int)$duration['duration_minutes'] . ' min' . h($mapped) . '<select name="service_ea_ids[' . (int)$duration['id'] . ']">' . option_list($serviceOptions, $duration['ea_service_id'] ?? null) . '</select></label>';
         }
         $body .= '</div></fieldset></div>';
     } else {
